@@ -315,7 +315,7 @@
                                 <!-- Capture Instructions -->
                                 <div class="alert alert-info alert-custom" style="font-size: 0.95rem;">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    <strong>Hướng dẫn:</strong> Đặt khuôn mặt trong khung hình, nhìn thẳng vào camera và bấm "Chụp ảnh".
+                                    <strong>Hướng dẫn:</strong> Camera sẽ tự động chế độ Full HD (1920x1080). Đặt khuôn mặt trong khung hình, nhìn thẳng vào camera và bấm "Chụp ảnh". Chất lượng: 98%.
                                 </div>
                             </div>
                         </div>
@@ -355,7 +355,7 @@
                                 <!-- Upload Instructions -->
                                 <div class="alert alert-warning alert-custom" style="font-size: 0.95rem;">
                                     <i class="fas fa-exclamation-triangle me-1"></i>
-                                    <strong>Lưu ý:</strong> Cần 3-5 ảnh chất lượng cao, một khuôn mặt, rõ nét và đủ ánh sáng.
+                                    <strong>Lưu ý:</strong> Cần 3-5 ảnh chất lượng cao (Full HD khuyến nghị), một khuôn mặt, rõ nét, đủ ánh sáng. Tối đa 10MB/file. Ảnh sẽ tự động tối ưu hóa.
                                 </div>
                             </div>
                         </div>
@@ -801,7 +801,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function uploadFiles(files) {
         const validFiles = files.filter(file => {
             const isValidType = file.type.startsWith('image/');
-            const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB
+            const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB max
             
             if (!isValidType) {
                 window.FaceID?.NotificationSystem?.error(`File ${file.name} không phải là ảnh`);
@@ -809,7 +809,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (!isValidSize) {
-                window.FaceID?.NotificationSystem?.error(`File ${file.name} quá lớn (tối đa 5MB)`);
+                window.FaceID?.NotificationSystem?.error(`File ${file.name} quá lớn (tối đa 10MB)`);
                 return false;
             }
             
@@ -829,8 +829,6 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             for (let i = 0; i < validFiles.length; i++) {
                 const file = validFiles[i];
-                const formData = new FormData();
-                formData.append('image', file);
                 
                 // Update progress
                 const progress = ((i + 1) / validFiles.length) * 100;
@@ -838,6 +836,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 progressBar.textContent = `${i + 1}/${validFiles.length}`;
                 
                 try {
+                    // Optimize image before upload
+                    const optimizedFile = await optimizeImage(file);
+                    
+                    const formData = new FormData();
+                    formData.append('image', optimizedFile, file.name);
+                    
                     const response = await fetch(`/student/api/${studentId}/upload-image`, {
                         method: 'POST',
                         body: formData
@@ -888,6 +892,55 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Optimize image for upload
+    async function optimizeImage(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const img = new Image();
+                
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // Keep original dimensions but ensure quality
+                    // Max size: 2560x2560 to avoid memory issues
+                    const maxSize = 2560;
+                    if (width > maxSize || height > maxSize) {
+                        const ratio = Math.min(maxSize / width, maxSize / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Convert to high-quality JPEG blob
+                    canvas.toBlob((blob) => {
+                        resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+                    }, 'image/jpeg', 0.98); // 98% quality
+                };
+                
+                img.onerror = function() {
+                    reject(new Error('Failed to load image'));
+                };
+                
+                img.src = e.target.result;
+            };
+            
+            reader.onerror = function() {
+                reject(new Error('Failed to read file'));
+            };
+            
+            reader.readAsDataURL(file);
+        });
+    }
+
     // Setup camera controls
     function setupCameraControls() {
         document.getElementById('start-camera').addEventListener('click', startCamera);
@@ -900,8 +953,8 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { 
-                    width: { ideal: 640 },
-                    height: { ideal: 480 },
+                    width: { min: 640, ideal: 1920, max: 1920 },
+                    height: { min: 480, ideal: 1080, max: 1080 },
                     facingMode: 'user'
                 }
             });
@@ -914,6 +967,9 @@ document.addEventListener('DOMContentLoaded', function() {
             placeholder.classList.add('d-none');
             
             currentCamera = stream;
+            
+            // Log camera resolution
+            console.log(`Camera started at ${video.videoWidth}x${video.videoHeight}`);
             
             // Update button states
             document.getElementById('start-camera').disabled = true;
@@ -971,14 +1027,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const ctx = canvas.getContext('2d');
         
-        // Set canvas size to video size
+        // Set canvas size to video size (Full HD: 1920x1080)
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         
         // Draw current frame to canvas
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        // Convert to blob with high quality
+        // Convert to blob with highest quality
         canvas.toBlob(async (blob) => {
             if (blob) {
                 await uploadCapturedPhoto(blob);
@@ -986,7 +1042,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Failed to create blob from canvas');
                 window.FaceID?.NotificationSystem?.error('Lỗi khi xử lý ảnh');
             }
-        }, 'image/jpeg', 0.95); // High quality JPEG
+        }, 'image/jpeg', 0.98); // Maximum quality JPEG (98%)
     }
 
     // Upload captured photo

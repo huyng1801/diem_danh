@@ -10,7 +10,7 @@ Application Constants
 # Face Recognition Settings
 MIN_FACE_IMAGES = 3                    # Số ảnh tối thiểu để kích hoạt nhận diện
 MAX_FACE_IMAGES_PER_STUDENT = 10       # Số ảnh tối đa cho mỗi học sinh
-MIN_FACE_CONFIDENCE = 0.80             # Độ tin cậy tối thiểu (80%)
+MIN_FACE_CONFIDENCE = 0.60             # Độ tin cậy tối thiểu (60%)
 DEFAULT_FACE_CONFIDENCE = 0.6          # Độ tin cậy mặc định
 FACE_DISTANCE_THRESHOLD = 0.6          # Ngưỡng khoảng cách khuôn mặt (càng nhỏ càng giống)
 

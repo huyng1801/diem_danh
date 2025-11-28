@@ -144,6 +144,10 @@ class FaceRecognitionService:
         for idx, student in enumerate(students_with_folders):
             logger.info(f'[{idx + 1}/{len(students_with_folders)}] Training {student.student_code} - {student.full_name}')
             
+            # Debug: Check folder path
+            folder_path = os.path.join(student_faces_dir, student.student_code)
+            logger.debug(f'  Folder path: {folder_path}')
+            
             try:
                 # Train using student_code as folder name
                 success, message, encodings = trainer.train_person(
@@ -151,6 +155,8 @@ class FaceRecognitionService:
                     model='hog',
                     min_images=2
                 )
+                
+                logger.info(f'  Training result: success={success}, message="{message}", encodings_count={len(encodings) if encodings else 0}')
                 
                 if success and encodings:
                     # Store encodings with full_name for recognition
@@ -166,6 +172,7 @@ class FaceRecognitionService:
                     })
                     logger.info(f'✓ Successfully trained {student.full_name} with {len(encodings)} encodings')
                 else:
+                    logger.warning(f'✗ Failed to train {student.student_code}: {message}')
                     failed_persons.append({
                         'student_code': student.student_code,
                         'full_name': student.full_name,
