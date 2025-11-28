@@ -8,6 +8,7 @@ from datetime import datetime, date
 from app import db
 from app.models.attendance import Attendance
 from app.models.attendance_log import AttendanceLog
+from app.models.student import Student
 from app.services.attendance_service import AttendanceService
 from app.utils.decorators import login_required, role_required
 from app.utils.validators import is_valid_attendance_status, is_valid_session_type
@@ -38,11 +39,18 @@ def record_attendance():
         "student_id": 1,
         "attendance_log_id": 1,  # Required: ID from start-session
         "status": "present",  # present, absent, late, excused
-        "confidence": 0.95  # face recognition confidence (0.0-1.0)
+        "confidence": 0.95,  # face recognition confidence (0.0-1.0)
+        "image": "base64_encoded_image"  # Optional: snapshot image
     }
     """
     try:
+        import os
+        import base64
+        from io import BytesIO
+        from PIL import Image
+        from datetime import datetime
         from flask import session as flask_session
+        
         data = request.get_json()
         
         # Validate required fields
@@ -65,6 +73,8 @@ def record_attendance():
         
         # Validate confidence if present
         confidence = data.get('confidence', 0.0)
+        check_in_image_url = None
+        
         if confidence:
             confidence = float(confidence)
             if confidence < 0.0 or confidence > 1.0:
@@ -73,6 +83,37 @@ def record_attendance():
                     'message': 'Confidence must be between 0.0 and 1.0',
                     'status_code': API_BAD_REQUEST_CODE
                 }), API_BAD_REQUEST_CODE
+        
+        # Save image if provided and confidence is sufficient
+        if data.get('image') and confidence >= MIN_FACE_CONFIDENCE:
+            try:
+                image_base64 = data['image']
+                # Remove data URL prefix if present
+                if ',' in image_base64:
+                    image_base64 = image_base64.split(',')[1]
+                
+                # Decode base64 image
+                image_data_bytes = base64.b64decode(image_base64)
+                image = Image.open(BytesIO(image_data_bytes))
+                
+                # Create attendance_snapshots directory if not exists
+                snapshot_dir = os.path.join('app', 'uploads', 'attendance_snapshots')
+                os.makedirs(snapshot_dir, exist_ok=True)
+                
+                # Generate filename: student_code_timestamp.jpg
+                student = Student.query.get(data['student_id'])
+                if student:
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]
+                    filename = f"{student.student_code}_{timestamp}.jpg"
+                    filepath = os.path.join(snapshot_dir, filename)
+                    
+                    # Save image
+                    image.save(filepath, quality=85)
+                    check_in_image_url = f"attendance_snapshots/{filename}"
+                    logger.info(f'Saved attendance snapshot: {check_in_image_url}')
+            except Exception as e:
+                logger.warning(f'Failed to save attendance snapshot: {str(e)}')
+                # Continue without image, don't fail
         
         # Record attendance
         user_id = flask_session.get('user_id')
@@ -83,7 +124,8 @@ def record_attendance():
             face_confidence=confidence,
             is_face_recognized=(confidence >= MIN_FACE_CONFIDENCE),
             recorded_by_id=user_id,
-            notes=data.get('notes')
+            notes=data.get('notes'),
+            check_in_image_url=check_in_image_url
         )
         
         logger.info(f'Attendance recorded for student {data["student_id"]} - {data["status"]}')

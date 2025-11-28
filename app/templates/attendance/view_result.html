@@ -156,11 +156,11 @@
                             <tr>
                                 <th width="5%">#</th>
                                 <th width="15%">Mã học sinh</th>
-                                <th width="25%">Họ và tên</th>
+                                <th width="35%">Họ và tên / Snapshot</th>
                                 <th width="15%">Trạng thái</th>
-                                <th width="20%">Thời gian</th>
+                                <th width="15%">Thời gian</th>
                                 <th width="10%">Độ tin cậy</th>
-                                <th width="10%">Thao tác</th>
+                                <th width="5%">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody id="attendance-tbody">
@@ -171,10 +171,18 @@
                                     <span class="fw-bold">{{ record.student_code }}</span>
                                 </td>
                                 <td>
-                                    <div class="d-flex align-items-center">
-                                        <img src="{{ record.student_avatar or '/static/images/default-avatar.png' }}" 
-                                             alt="Avatar" class="rounded-circle me-2" width="32" height="32">
-                                        <span>{{ record.student_name }}</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div>
+                                            <span class="ms-2">{{ record.student_name }}</span>
+                                        </div>
+                                        {% if record.snapshot_url %}
+                                        <div>
+                                            <img src="/uploads/{{ record.snapshot_url }}" 
+                                                 alt="Snapshot" class="snapshot-preview"
+                                                 onclick="viewSnapshot('{{ record.id }}', '/uploads/{{ record.snapshot_url }}')" 
+                                                 title="Nhấp để xem ảnh chụp lớn">
+                                        </div>
+                                        {% endif %}
                                     </div>
                                 </td>
                                 <td>
@@ -212,13 +220,6 @@
                                 </td>
                                 <td>
                                     <div class="btn-group" role="group">
-                                        {% if record.snapshot_url %}
-                                        <button type="button" class="btn btn-sm btn-outline-info" 
-                                                onclick="viewSnapshot('{{ record.id }}', '{{ record.snapshot_url }}')" 
-                                                title="Xem ảnh chụp">
-                                            <i class="fas fa-image"></i>
-                                        </button>
-                                        {% endif %}
                                         <button type="button" class="btn btn-sm btn-outline-primary" 
                                                 onclick="editRecord('{{ record.id }}')" title="Chỉnh sửa">
                                             <i class="fas fa-edit"></i>
@@ -604,6 +605,40 @@
     
     .session-info {
         font-size: 0.875rem;
+    }
+    
+    /* Snapshot styling */
+    .snapshot-btn {
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .snapshot-btn:hover::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 123, 255, 0.1);
+        border-radius: 3px;
+    }
+    
+    .snapshot-preview {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border-radius: 4px;
+        object-fit: cover;
+        border: 2px solid #dee2e6;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .snapshot-preview:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 0 8px rgba(13, 110, 253, 0.3);
+        transform: scale(1.05);
     }
 </style>
 {% endblock %}

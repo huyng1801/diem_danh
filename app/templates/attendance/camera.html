@@ -1204,20 +1204,44 @@ async function saveAttendance(studentId, face) {
             return;
         }
         
+        // Capture current frame from canvas
+        const canvas = document.getElementById('detection-canvas');
+        const video = document.getElementById('camera-video');
+        let imageBase64 = null;
+        
+        if (canvas && video) {
+            try {
+                const canvasCtx = canvas.getContext('2d');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvasCtx.drawImage(video, 0, 0);
+                imageBase64 = canvas.toDataURL('image/jpeg', 0.85);
+            } catch (e) {
+                console.warn('Could not capture frame:', e);
+            }
+        }
+        
+        const payload = {
+            student_id: studentId,
+            attendance_log_id: currentAttendanceLogId,
+            status: 'present',
+            confidence: face.confidence
+        };
+        
+        // Add image if captured
+        if (imageBase64) {
+            payload.image = imageBase64;
+        }
+        
         const response = await fetch('/attendance/record', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                student_id: studentId,
-                attendance_log_id: currentAttendanceLogId,
-                status: 'present',
-                confidence: face.confidence
-            })
+            body: JSON.stringify(payload)
         });
         
         const data = await response.json();
         if (data.success) {
-            console.log(`💾 Đã lưu: ${face.full_name}`);
+            console.log(`💾 Đã lưu: ${face.full_name}${imageBase64 ? ' (có snapshot)' : ''}`);
         } else {
             console.warn(`⚠️ Không lưu được ${face.full_name}: ${data.message}`);
         }
