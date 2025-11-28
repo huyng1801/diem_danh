@@ -1,0 +1,357 @@
+{% extends "layout.html" %}
+
+{% block title %}Quản lý niên khóa{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+    <a href="{{ url_for('admin.dashboard') }}" class="text-decoration-none">
+        <i class="fas fa-home me-1"></i>Trang chủ
+    </a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">
+    Quản lý niên khóa
+</li>
+{% endblock %}
+
+{% block layout_content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="page-header">
+                <h2 class="page-header-title">
+                    <i class="fas fa-calendar-alt me-2" style="color: #3b82f6;"></i>
+                    Danh sách niên khóa
+                </h2>
+                <div class="page-header-actions">
+                    <a href="{{ url_for('academic_year.create_academic_year_page') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Thêm niên khóa
+                    </a>
+                </div>
+            </div>
+
+            <!-- Academic Year Table -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="yearTable">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Năm học</th>
+                                    <th>Ngày bắt đầu</th>
+                                    <th>Ngày kết thúc</th>
+                                    <th>Số lớp</th>
+                                    <th>Trạng thái</th>
+                                    <th>Ngày tạo</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="yearTableBody">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <nav aria-label="Academic year pagination" class="mt-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="text-muted">
+                                Hiển thị <span id="showingInfo">0 - 0 của 0</span> niên khóa
+                            </div>
+                            <ul class="pagination mb-0" id="pagination">
+                                <!-- Will be populated by JavaScript -->
+                            </ul>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentPage = 1;
+    let currentLimit = 10;
+
+    // Initialize academic year management
+    function initializeAcademicYearManagement() {
+        loadYearList();
+    }
+
+    // Load academic year list
+    async function loadYearList() {
+        try {
+            const params = new URLSearchParams({
+                page: currentPage,
+                limit: currentLimit
+            });
+
+            const response = await fetch(`/academic-year/api/list?${params}`);
+            const data = await response.json();
+            
+            console.log('API Response:', data);
+            
+            if (data.success) {
+                console.log('Academic Years:', data.data.academic_years);
+                console.log('Total:', data.data.total);
+                renderYearList(data.data.academic_years || []);
+                if (data.data && data.data.total !== undefined) {
+                    renderPagination(data.data);
+                    updateShowingInfo(data.data);
+                }
+            } else {
+                window.FaceID?.NotificationSystem?.error(data.message || 'Lỗi khi tải danh sách niên khóa');
+            }
+        } catch (error) {
+            console.error('Error loading academic years:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi tải danh sách niên khóa');
+        }
+    }
+
+    // Render year list
+    function renderYearList(years) {
+        const tbody = document.getElementById('yearTableBody');
+        
+        if (!years || years.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="fas fa-calendar-times fa-2x mb-2 d-block"></i>
+                        Không có niên khóa nào
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = years.map((year, index) => {
+            const stt = (currentPage - 1) * currentLimit + index + 1;
+            const statusBadge = year.is_active 
+                ? '<span class="badge bg-success">Đang hoạt động</span>'
+                : '<span class="badge bg-secondary">Không hoạt động</span>';
+            
+            const startDate = new Date(year.start_date).toLocaleDateString('vi-VN');
+            const endDate = new Date(year.end_date).toLocaleDateString('vi-VN');
+            const createdAt = new Date(year.created_at).toLocaleDateString('vi-VN');
+
+            return `
+                <tr>
+                    <td>${stt}</td>
+                    <td><strong>${year.year}</strong></td>
+                    <td>${startDate}</td>
+                    <td>${endDate}</td>
+                    <td><span class="badge bg-primary">${year.classroom_count || 0}</span></td>
+                    <td>${statusBadge}</td>
+                    <td>${createdAt}</td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <a href="/academic-year/${year.id}/edit" class="btn btn-sm btn-outline-primary" title="Chỉnh sửa">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            ${!year.is_active ? `
+                                <button type="button" class="btn btn-sm btn-outline-success" 
+                                        onclick="activateYear(${year.id})" title="Kích hoạt">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                            ` : ''}
+                            ${year.classroom_count === 0 ? `
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                        onclick="deleteYear(${year.id})" title="Xóa">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Activate year
+    window.activateYear = function(yearId) {
+        const modalHtml = `
+            <div class="modal fade" id="confirmModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Xác nhận kích hoạt niên khóa</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Bạn có chắc chắn muốn kích hoạt niên khóa này? Niên khóa hiện tại sẽ bị hủy kích hoạt.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                            <button type="button" class="btn btn-success" id="confirmBtn">Kích hoạt</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHtml;
+        document.body.appendChild(modalContainer);
+
+        const modal = new bootstrap.Modal(modalContainer.querySelector('.modal'));
+        const confirmBtn = modalContainer.querySelector('#confirmBtn');
+
+        confirmBtn.addEventListener('click', async function() {
+            modal.hide();
+
+            try {
+                const response = await fetch(`/academic-year/api/${yearId}/activate`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.FaceID?.NotificationSystem?.success('Kích hoạt niên khóa thành công');
+                    loadYearList();
+                } else {
+                    window.FaceID?.NotificationSystem?.error(data.message || 'Lỗi khi kích hoạt niên khóa');
+                }
+            } catch (error) {
+                console.error('Error activating year:', error);
+                window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi kích hoạt niên khóa');
+            } finally {
+                modalContainer.remove();
+            }
+        });
+
+        modal.show();
+    };
+
+    // Delete year
+    window.deleteYear = function(yearId) {
+        const modalHtml = `
+            <div class="modal fade" id="confirmModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Xác nhận xóa niên khóa</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Bạn có chắc chắn muốn xóa niên khóa này? Hành động này không thể hoàn tác.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                            <button type="button" class="btn btn-danger" id="confirmBtn">Xóa</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHtml;
+        document.body.appendChild(modalContainer);
+
+        const modal = new bootstrap.Modal(modalContainer.querySelector('.modal'));
+        const confirmBtn = modalContainer.querySelector('#confirmBtn');
+
+        confirmBtn.addEventListener('click', async function() {
+            modal.hide();
+
+            try {
+                const response = await fetch(`/academic-year/api/${yearId}/delete`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.FaceID?.NotificationSystem?.success('Xóa niên khóa thành công');
+                    loadYearList();
+                } else {
+                    window.FaceID?.NotificationSystem?.error(data.message || 'Lỗi khi xóa niên khóa');
+                }
+            } catch (error) {
+                console.error('Error deleting year:', error);
+                window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi xóa niên khóa');
+            } finally {
+                modalContainer.remove();
+            }
+        });
+
+        modal.show();
+    };
+
+    // Pagination
+    function renderPagination(data) {
+        const paginationEl = document.getElementById('pagination');
+        const totalPages = Math.ceil(data.total / currentLimit);
+        
+        if (totalPages <= 1) {
+            paginationEl.innerHTML = '';
+            return;
+        }
+
+        let paginationHTML = '';
+        
+        // Previous button
+        if (currentPage > 1) {
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${currentPage - 1})">‹</a></li>`;
+        }
+        
+        // Page numbers
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, currentPage + 2);
+        
+        if (startPage > 1) {
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(1)">1</a></li>`;
+            if (startPage > 2) {
+                paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            paginationHTML += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+            </li>`;
+        }
+        
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${totalPages})">${totalPages}</a></li>`;
+        }
+        
+        // Next button
+        if (currentPage < totalPages) {
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${currentPage + 1})">›</a></li>`;
+        }
+        
+        paginationEl.innerHTML = paginationHTML;
+    }
+
+    // Change page
+    window.changePage = function(page) {
+        currentPage = page;
+        loadYearList();
+    };
+
+    // Update showing info
+    function updateShowingInfo(data) {
+        const start = (currentPage - 1) * currentLimit + 1;
+        const end = Math.min(currentPage * currentLimit, data.total);
+        const total = data.total;
+        
+        document.getElementById('showingInfo').textContent = `${start} - ${end} của ${total}`;
+    }
+
+    // Initialize on page load
+    initializeAcademicYearManagement();
+});
+</script>
+{% endblock %}

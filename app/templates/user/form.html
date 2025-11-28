@@ -1,0 +1,451 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ 'Chỉnh sửa' if user else 'Thêm' }} người dùng{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+    <a href="{{ url_for('admin.dashboard') }}" class="text-decoration-none">
+        <i class="fas fa-home me-1"></i>Trang chủ
+    </a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{{ url_for('user.user_list_page') }}" class="text-decoration-none">
+        Quản lý người dùng
+    </a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">
+    {{ 'Chỉnh sửa' if user else 'Thêm mới' }}
+</li>
+{% endblock %}
+
+{% block layout_content %}
+<div class="container-fluid mt-4">
+    <div class="row justify-content-center">
+        <div class="col-12" style="max-width:100%;">
+
+            <!-- User Form -->
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form id="userForm" method="POST">
+                        <input type="hidden" id="userId" name="id" value="{{ user.id if user else '' }}">
+                        
+                        <!-- Basic Information -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-info-circle text-primary me-2"></i>
+                                Thông tin cơ bản
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="username" class="form-label">
+                                            Username <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="username" 
+                                               name="username" 
+                                               value="{{ user.username if user else '' }}"
+                                               {% if user %}readonly{% endif %}
+                                               placeholder="Nhập username">
+                                        <div class="invalid-feedback"></div>
+                                        {% if user %}
+                                        <div class="form-text">Username không thể thay đổi</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">
+                                            Email <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="email" 
+                                               class="form-control" 
+                                               id="email" 
+                                               name="email"
+                                               value="{{ user.email if user else '' }}"
+                                               placeholder="example@email.com">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="mb-3">
+                                        <label for="full_name" class="form-label">
+                                            Họ và tên <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="full_name" 
+                                               name="full_name"
+                                               value="{{ user.full_name if user else '' }}"
+                                               placeholder="Nhập họ và tên đầy đủ">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="role" class="form-label">
+                                            Vai trò <span class="text-danger">*</span>
+                                        </label>
+                                        <select class="form-select" id="role" name="role">
+                                            <option value="">Chọn vai trò</option>
+                                            <option value="teacher" {{ 'selected' if user and user.role == 'teacher' else '' }}>
+                                                Giáo viên
+                                            </option>
+                                            <option value="admin" {{ 'selected' if user and user.role == 'admin' else '' }}>
+                                                Quản trị viên
+                                            </option>
+                                        </select>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="phone" class="form-label">Số điện thoại</label>
+                                        <input type="tel" 
+                                               class="form-control" 
+                                               id="phone" 
+                                               name="phone"
+                                               value="{{ user.phone if user and user.phone else '' }}"
+                                               placeholder="0123456789">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Password Section -->
+                        {% if not user %}
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-lock text-primary me-2"></i>
+                                Mật khẩu
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="password" class="form-label">
+                                            Mật khẩu <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="password" 
+                                                   class="form-control" 
+                                                   id="password" 
+                                                   name="password"
+                                                   placeholder="Nhập mật khẩu">
+                                            <button class="btn btn-outline-secondary" 
+                                                    type="button" 
+                                                    onclick="togglePassword('password')">
+                                                <i class="fas fa-eye" id="password-icon"></i>
+                                            </button>
+                                        </div>
+                                        <div class="invalid-feedback" id="password-feedback"></div>
+                                        <div class="form-text">Tối thiểu 8 ký tự</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="confirm_password" class="form-label">
+                                            Xác nhận mật khẩu <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="password" 
+                                                   class="form-control" 
+                                                   id="confirm_password" 
+                                                   name="confirm_password"
+                                                   placeholder="Nhập lại mật khẩu">
+                                            <button class="btn btn-outline-secondary" 
+                                                    type="button" 
+                                                    onclick="togglePassword('confirm_password')">
+                                                <i class="fas fa-eye" id="confirm_password-icon"></i>
+                                            </button>
+                                        </div>
+                                        <div class="invalid-feedback" id="confirm_password-feedback"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if user %}
+                        <!-- Status Section for Edit -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-toggle-on text-primary me-2"></i>
+                                Trạng thái
+                            </h5>
+                            
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="is_active" 
+                                       name="is_active"
+                                       {{ 'checked' if user.is_active else '' }}>
+                                <label class="form-check-label" for="is_active">
+                                    Tài khoản đang hoạt động
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- User Info -->
+                        <div class="alert alert-info">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <small>
+                                        <i class="fas fa-calendar me-1"></i>
+                                        <strong>Ngày tạo:</strong> 
+                                        {{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else 'N/A' }}
+                                    </small>
+                                </div>
+                                <div class="col-md-12">
+                                    <small>
+                                        <i class="fas fa-sign-in-alt me-1"></i>
+                                        <strong>Đăng nhập cuối:</strong> 
+                                        {{ user.last_login.strftime('%d/%m/%Y %H:%M') if user.last_login else 'Chưa đăng nhập' }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                            <a href="{{ url_for('user.user_list_page') }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i>
+                                Hủy bỏ
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-save me-1"></i>
+                                {{ 'Cập nhật' if user else 'Tạo mới' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const isEditing = {{ 'true' if user else 'false' }};
+    const userId = {{ user.id if user else 'null' }};
+
+    // Setup form submission
+    const form = document.getElementById('userForm');
+    form.addEventListener('submit', handleSubmit);
+
+    // Toggle password visibility
+    window.togglePassword = function(fieldId) {
+        const field = document.getElementById(fieldId);
+        const icon = document.getElementById(fieldId + '-icon');
+        
+        if (field.type === 'password') {
+            field.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            field.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    };
+
+    // Handle form submission
+    async function handleSubmit(event) {
+        event.preventDefault();
+        
+        // Clear previous errors
+        document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        
+        const formData = new FormData(form);
+        const userData = Object.fromEntries(formData.entries());
+        
+        // Convert checkbox to boolean
+        userData.is_active = document.getElementById('is_active') ? 
+            document.getElementById('is_active').checked : true;
+        
+        // Validate
+        if (!validateForm(userData)) {
+            return;
+        }
+
+        // Remove password fields if empty (for edit mode)
+        if (isEditing && !userData.password) {
+            delete userData.password;
+            delete userData.confirm_password;
+        }
+
+        try {
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang lưu...';
+
+            let response;
+            if (isEditing) {
+                response = await fetch(`/users/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(userData)
+                });
+            } else {
+                response = await fetch('/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(userData)
+                });
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                window.FaceID?.NotificationSystem?.success(`${isEditing ? 'Cập nhật' : 'Tạo'} người dùng thành công`);
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("user.user_list_page") }}';
+                }, 1000);
+            } else {
+                window.FaceID?.NotificationSystem?.error(data.message || `Lỗi khi ${isEditing ? 'cập nhật' : 'tạo'} người dùng`);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>{{ "Cập nhật" if user else "Tạo mới" }}';
+            }
+        } catch (error) {
+            console.error('Error saving user:', error);
+            window.FaceID?.NotificationSystem?.error(`Lỗi kết nối khi ${isEditing ? 'cập nhật' : 'tạo'} người dùng`);
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>{{ "Cập nhật" if user else "Tạo mới" }}';
+        }
+    }
+
+    // Validate form
+    function validateForm(userData) {
+        let isValid = true;
+        // Required fields (all cases)
+        const requiredFields = ['email', 'full_name', 'role', 'phone'];
+        if (!isEditing) {
+            requiredFields.push('username', 'password', 'confirm_password');
+        }
+        requiredFields.forEach(field => {
+            if (!userData[field] || userData[field].trim() === '') {
+                let label = '';
+                switch(field) {
+                    case 'email': label = 'Email'; break;
+                    case 'full_name': label = 'Họ và tên'; break;
+                    case 'role': label = 'Vai trò'; break;
+                    case 'phone': label = 'Số điện thoại'; break;
+                    case 'username': label = 'Tên đăng nhập'; break;
+                    case 'password': label = 'Mật khẩu'; break;
+                    case 'confirm_password': label = 'Xác nhận mật khẩu'; break;
+                    default: label = 'Trường này';
+                }
+                markFieldInvalid(field, label + ' là bắt buộc');
+                isValid = false;
+            }
+        });
+
+        // Username validation (3-50 characters, only alphanumeric and underscores)
+        if (userData.username && userData.username.trim() !== '') {
+            if (userData.username.length < 3 || userData.username.length > 50) {
+                markFieldInvalid('username', 'Tên đăng nhập phải từ 3-50 ký tự');
+                isValid = false;
+            } 
+        }
+
+        // Email validation
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (userData.email && !emailRegex.test(userData.email)) {
+            markFieldInvalid('email', 'Email không hợp lệ');
+            isValid = false;
+        }
+
+        // Password validation (8-100 characters, min 1 uppercase, 1 lowercase, 1 digit)
+        if (!isEditing || userData.password) {
+            if (userData.password && userData.password.trim() !== '') {
+                // Always clear previous error first
+                markFieldInvalid('password', '');
+                markFieldInvalid('confirm_password', '');
+                if (userData.password.length < 8 || userData.password.length > 100) {
+                    markFieldInvalid('password', 'Mật khẩu phải từ 8-100 ký tự');
+                    isValid = false;
+                } 
+                if (!/[A-Z]/.test(userData.password)) {
+                    markFieldInvalid('password', 'Mật khẩu phải chứa ít nhất 1 chữ hoa');
+                    isValid = false;
+                }
+                if (!/[a-z]/.test(userData.password)) {
+                    markFieldInvalid('password', 'Mật khẩu phải chứa ít nhất 1 chữ thường');
+                    isValid = false;
+                }
+                if (!/\d/.test(userData.password)) {
+                    markFieldInvalid('password', 'Mật khẩu phải chứa ít nhất 1 chữ số');
+                    isValid = false;
+                }
+                if (userData.password !== userData.confirm_password) {
+                    markFieldInvalid('confirm_password', 'Xác nhận mật khẩu không khớp');
+                    isValid = false;
+                }
+            }
+        }
+
+        // Phone validation (7-15 digits with optional formatting)
+        if (userData.phone && userData.phone.trim() !== '') {
+            const phone = userData.phone.trim();
+            const phoneDigits = phone.replace(/[^\d+]/g, '');
+            
+            if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+                markFieldInvalid('phone', 'Số điện thoại phải từ 7-15 chữ số');
+                isValid = false;
+            } else if (phoneDigits.startsWith('+') && phoneDigits.length < 10) {
+                markFieldInvalid('phone', 'Số điện thoại quốc tế phải có ít nhất 10 chữ số (bao gồm +)');
+                isValid = false;
+            }
+        }
+
+        return isValid;
+    }
+
+    // Mark field as invalid
+    function markFieldInvalid(fieldName, message) {
+        const field = document.getElementById(fieldName);
+        let feedback = field.parentNode.querySelector('.invalid-feedback');
+        
+        // Special handling for password fields with ID feedback element
+        if (!feedback && fieldName === 'password') {
+            feedback = document.getElementById('password-feedback');
+        } else if (!feedback && fieldName === 'confirm_password') {
+            feedback = document.getElementById('confirm_password-feedback');
+        }
+        
+        if (message) {
+            field.classList.add('is-invalid');
+            if (feedback) {
+                feedback.textContent = message;
+                feedback.style.display = 'block';
+            }
+        } else {
+            field.classList.remove('is-invalid');
+            if (feedback) {
+                feedback.textContent = '';
+                feedback.style.display = 'none';
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

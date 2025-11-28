@@ -1,0 +1,571 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ 'Chỉnh sửa' if student_data else 'Thêm' }} học sinh{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+    <a href="{{ url_for('admin.dashboard') }}" class="text-decoration-none">
+        <i class="fas fa-home me-1"></i>Trang chủ
+    </a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{{ url_for('student.list') }}" class="text-decoration-none">
+        Quản lý học sinh
+    </a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">
+    {{ 'Chỉnh sửa' if student_data else 'Thêm mới' }}
+</li>
+{% endblock %}
+
+{% block layout_content %}
+<div class="container-fluid mt-4">
+    <div class="row justify-content-center">
+        <div class="col-12" style="max-width:100%;">
+
+            <!-- Student Form -->
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form id="studentForm" method="POST">
+                        <input type="hidden" id="studentId" name="id" value="{{ student_data.id if student_data else '' }}">
+                        
+                        <!-- Basic Information -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-user text-primary me-2"></i>
+                                Thông tin cơ bản
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="student_code" class="form-label">
+                                            Mã học sinh <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="student_code" 
+                                               name="student_code" 
+                                               value="{{ student_data.student_code if student_data else '' }}"
+                                               {% if student_data %}readonly{% endif %}
+                                               placeholder="Ví dụ: HS202400001">
+                                        <div class="invalid-feedback"></div>
+                                        {% if student_data %}
+                                        <div class="form-text">Mã học sinh không thể thay đổi</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="full_name" class="form-label">
+                                            Họ và tên <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="full_name" 
+                                               name="full_name"
+                                               value="{{ student_data.full_name if student_data else '' }}"
+                                               placeholder="Nhập họ và tên đầy đủ">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="gender" class="form-label">
+                                            Giới tính <span class="text-danger">*</span>
+                                        </label>
+                                        <select class="form-select" id="gender" name="gender">
+                                            <option value="">Chọn giới tính</option>
+                                            <option value="Nam" {{ 'selected' if student_data and student_data.gender == 'Nam' else '' }}>Nam</option>
+                                            <option value="Nữ" {{ 'selected' if student_data and student_data.gender == 'Nữ' else '' }}>Nữ</option>
+                                        </select>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="date_of_birth" class="form-label">
+                                            Ngày sinh <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="date" 
+                                               class="form-control" 
+                                               id="date_of_birth" 
+                                               name="date_of_birth"
+                                               value="{{ student_data.date_of_birth if student_data else '' }}">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="phone" class="form-label">
+                                            Số điện thoại
+                                        </label>
+                                        <input type="tel" 
+                                               class="form-control" 
+                                               id="phone" 
+                                               name="phone"
+                                               value="{{ student_data.phone if student_data else '' }}"
+                                               placeholder="0123456789">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="mb-3">
+                                        <label for="address" class="form-label">
+                                            Địa chỉ
+                                        </label>
+                                        <textarea class="form-control" 
+                                                  id="address" 
+                                                  name="address"
+                                                  rows="2"
+                                                  placeholder="Nhập địa chỉ chi tiết">{{ student_data.address if student_data else '' }}</textarea>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Parent Information -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-users text-primary me-2"></i>
+                                Thông tin phụ huynh
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="parent_name" class="form-label">
+                                            Tên phụ huynh
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="parent_name" 
+                                               name="parent_name"
+                                               value="{{ student_data.parent_name if student_data else '' }}"
+                                               placeholder="Họ tên phụ huynh">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="parent_phone" class="form-label">
+                                            Số điện thoại phụ huynh
+                                        </label>
+                                        <input type="tel" 
+                                               class="form-control" 
+                                               id="parent_phone" 
+                                               name="parent_phone"
+                                               value="{{ student_data.parent_phone if student_data else '' }}"
+                                               placeholder="0987654321">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- School Information -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-school text-primary me-2"></i>
+                                Thông tin học tập
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="classroom_id" class="form-label">
+                                            Lớp học
+                                        </label>
+                                        <select class="form-select" id="classroom_id" name="classroom_id">
+                                            <option value="">Chọn lớp học</option>
+                                            <!-- Options will be loaded by JavaScript -->
+                                        </select>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="academic_year_id" class="form-label">
+                                            Năm học
+                                        </label>
+                                        <select class="form-select" id="academic_year_id" name="academic_year_id">
+                                            <option value="">Chọn năm học</option>
+                                            <!-- Options will be loaded by JavaScript -->
+                                        </select>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-cog text-primary me-2"></i>
+                                Cài đặt
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="is_active" class="form-label">
+                                            Trạng thái
+                                        </label>
+                                        <select class="form-select" id="is_active" name="is_active">
+                                            <option value="true" {{ 'selected' if not student_data or student_data.is_active else '' }}>Hoạt động</option>
+                                            <option value="false" {{ 'selected' if student_data and not student_data.is_active else '' }}>Tạm khóa</option>
+                                        </select>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                
+                                {% if student_data %}
+                                <!-- Đã xóa phần quản lý ảnh -->
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                            <a href="{{ url_for('student.list') }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i>
+                                Hủy bỏ
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-save me-1"></i>
+                                <span id="submitText">{{ 'Cập nhật' if student_data else 'Tạo mới' }}</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const isEdit = document.getElementById('studentId').value !== '';
+    let originalData = {};
+
+    // Initialize form
+    function initializeForm() {
+        loadClassrooms();
+        loadAcademicYears();
+        setupFormValidation();
+        setupEventListeners();
+        
+        if (isEdit) {
+            storeOriginalData();
+        } else {
+            // Auto-generate student code for new student
+            generateStudentCode();
+        }
+    }
+
+    // Generate student code
+    async function generateStudentCode() {
+        try {
+            const response = await fetch('/student/api/generate-code');
+            const data = await response.json();
+            
+            if (data.success) {
+                document.getElementById('student_code').value = data.data.student_code;
+            }
+        } catch (error) {
+            console.error('Error generating student code:', error);
+            // Fallback: generate simple code
+            const year = new Date().getFullYear();
+            const timestamp = Date.now().toString().slice(-4);
+            document.getElementById('student_code').value = `HS${year}${timestamp}`;
+        }
+    }
+
+    // Store original data for comparison
+    function storeOriginalData() {
+        const form = document.getElementById('studentForm');
+        const formData = new FormData(form);
+        for (let [key, value] of formData.entries()) {
+            originalData[key] = value;
+        }
+    }
+
+    // Load classrooms
+    async function loadClassrooms() {
+        try {
+            const response = await fetch('/classroom/api/list?limit=1000');
+            const data = await response.json();
+            
+            if (data.success) {
+                const select = document.getElementById('classroom_id');
+                select.innerHTML = '<option value="">Chọn lớp học</option>';
+                
+                data.data.classrooms.forEach(classroom => {
+                    const option = document.createElement('option');
+                    option.value = classroom.id;
+                    option.textContent = `${classroom.class_name} (${classroom.student_count || 0}/${classroom.max_student || 45})`;
+                    
+                    // Select current classroom if editing
+                    {% if student_data %}
+                    if (classroom.id === {{ student_data.classroom_id if student_data.classroom_id else 'null' }}) {
+                        option.selected = true;
+                    }
+                    {% endif %}
+                    
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading classrooms:', error);
+        }
+    }
+
+    // Load academic years
+    async function loadAcademicYears() {
+        try {
+            const response = await fetch('/classroom/api/academic_years');
+            const data = await response.json();
+            
+            if (data.success) {
+                const select = document.getElementById('academic_year_id');
+                select.innerHTML = '<option value="">Chọn năm học</option>';
+                
+                data.data.forEach(year => {
+                    const option = document.createElement('option');
+                    option.value = year.id;
+                    option.textContent = year.name;
+                    
+                    // Select current academic year if editing or current year for new student
+                    {% if student_data %}
+                    if (year.id === {{ student_data.academic_year_id if student_data.academic_year_id else 'null' }}) {
+                        option.selected = true;
+                    }
+                    {% else %}
+                    // Select current active year for new student
+                    if (year.is_current || year.is_active) {
+                        option.selected = true;
+                    }
+                    {% endif %}
+                    
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading academic years:', error);
+        }
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+        // Form submission
+        document.getElementById('studentForm').addEventListener('submit', handleFormSubmit);
+        
+        // Phone number formatting
+        document.getElementById('phone').addEventListener('input', formatPhoneNumber);
+        document.getElementById('parent_phone').addEventListener('input', formatPhoneNumber);
+        
+        // Auto-generate student code when changing academic year (for new student)
+        if (!isEdit) {
+            document.getElementById('academic_year_id').addEventListener('change', function() {
+                if (this.value) {
+                    generateStudentCode();
+                }
+            });
+        }
+    }
+
+    // Format phone number
+    function formatPhoneNumber(event) {
+        let value = event.target.value.replace(/\D/g, '');
+        if (value.length > 10) {
+            value = value.substring(0, 10);
+        }
+        event.target.value = value;
+    }
+
+    // Setup form validation
+    function setupFormValidation() {
+        const form = document.getElementById('studentForm');
+        const inputs = form.querySelectorAll('input, select');
+        
+        inputs.forEach(input => {
+            input.addEventListener('blur', validateField);
+            input.addEventListener('input', clearFieldError);
+        });
+    }
+
+    // Validate individual field
+    function validateField(event) {
+        const field = event.target;
+        const value = field.value.trim();
+        
+        clearFieldError(event);
+        
+        switch (field.id) {
+            case 'student_code':
+                if (!value) {
+                    showFieldError(field, 'Vui lòng nhập mã học sinh');
+                } else if (!/^[A-Z0-9]+$/.test(value)) {
+                    showFieldError(field, 'Mã học sinh chỉ chứa chữ hoa và số');
+                }
+                break;
+                
+            case 'full_name':
+                if (!value) {
+                    showFieldError(field, 'Vui lòng nhập họ và tên');
+                } else if (value.length < 2) {
+                    showFieldError(field, 'Họ tên phải có ít nhất 2 ký tự');
+                }
+                break;
+                
+            case 'gender':
+                if (!value) {
+                    showFieldError(field, 'Vui lòng chọn giới tính');
+                }
+                break;
+                
+            case 'date_of_birth':
+                if (!value) {
+                    showFieldError(field, 'Vui lòng chọn ngày sinh');
+                } else {
+                    const birthDate = new Date(value);
+                    const today = new Date();
+                    const age = today.getFullYear() - birthDate.getFullYear();
+                    
+                    if (age < 6 || age > 25) {
+                        showFieldError(field, 'Tuổi học sinh phải từ 6 đến 25');
+                    }
+                }
+                break;
+                
+            case 'phone':
+            case 'parent_phone':
+                if (value && !/^[0-9]{10,11}$/.test(value)) {
+                    showFieldError(field, 'Số điện thoại không hợp lệ');
+                }
+                break;
+        }
+    }
+
+    // Show field error
+    function showFieldError(field, message) {
+        field.classList.add('is-invalid');
+        const feedback = field.nextElementSibling;
+        if (feedback && feedback.classList.contains('invalid-feedback')) {
+            feedback.textContent = message;
+        }
+    }
+
+    // Clear field error
+    function clearFieldError(event) {
+        const field = event.target;
+        field.classList.remove('is-invalid');
+        const feedback = field.nextElementSibling;
+        if (feedback && feedback.classList.contains('invalid-feedback')) {
+            feedback.textContent = '';
+        }
+    }
+
+    // Handle form submission
+    async function handleFormSubmit(event) {
+        event.preventDefault();
+        
+        // Validate form
+        if (!validateForm()) {
+            return;
+        }
+        
+        const submitBtn = document.getElementById('submitBtn');
+        const submitText = document.getElementById('submitText');
+        const originalText = submitText.textContent;
+        
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitText.textContent = 'Đang xử lý...';
+        
+        try {
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Convert boolean values
+            data.is_active = data.is_active === 'true';
+            
+            const url = isEdit ? `/student/api/${data.id}` : '/student/api/create';
+            const method = isEdit ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                window.FaceID?.NotificationSystem?.success(result.message || `${isEdit ? 'Cập nhật' : 'Tạo'} học sinh thành công`);
+                
+                // Redirect to list page
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('student.list') }}";
+                }, 1500);
+                
+            } else {
+                window.FaceID?.NotificationSystem?.error(result.message || `Lỗi khi ${isEdit ? 'cập nhật' : 'tạo'} học sinh`);
+            }
+            
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            window.FaceID?.NotificationSystem?.error(`Lỗi kết nối khi ${isEdit ? 'cập nhật' : 'tạo'} học sinh`);
+        } finally {
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitText.textContent = originalText;
+        }
+    }
+
+    // Validate entire form
+    function validateForm() {
+        const form = document.getElementById('studentForm');
+        let isValid = true;
+        
+        // Check required fields
+        const requiredFields = ['student_code', 'full_name', 'gender', 'date_of_birth'];
+        
+        requiredFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            const value = field.value.trim();
+            
+            if (!value) {
+                showFieldError(field, 'Trường này là bắt buộc');
+                isValid = false;
+            } else {
+                // Trigger individual validation
+                validateField({ target: field });
+                if (field.classList.contains('is-invalid')) {
+                    isValid = false;
+                }
+            }
+        });
+        
+        return isValid;
+    }
+
+    // Initialize form on page load
+    initializeForm();
+});
+</script>
+{% endblock %}

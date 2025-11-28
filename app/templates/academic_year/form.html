@@ -1,0 +1,381 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ 'Chỉnh sửa' if year else 'Thêm' }} niên khóa{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+    <a href="{{ url_for('admin.dashboard') }}" class="text-decoration-none">
+        <i class="fas fa-home me-1"></i>Trang chủ
+    </a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{{ url_for('academic_year.list_academic_years') }}" class="text-decoration-none">
+        Quản lý niên khóa
+    </a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">
+    {{ 'Chỉnh sửa' if year else 'Thêm mới' }}
+</li>
+{% endblock %}
+
+{% block layout_content %}
+<div class="container-fluid mt-4">
+    <div class="row justify-content-center">
+    <div class="col-12">
+
+            <!-- Year Form -->
+            <div class="card shadow-sm w-100">
+                <div class="card-body p-4">
+                    <form id="yearForm" method="POST">
+                        <input type="hidden" id="yearId" name="id" value="{{ year.id if year else '' }}">
+                        
+                        <!-- Year Range -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-calendar-alt text-primary me-2"></i>
+                                Năm học
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="start_year" class="form-label">
+                                            Năm bắt đầu <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               id="start_year" 
+                                               name="start_year"
+                                               value="{{ year.year.split('-')[0] if year else '' }}"
+                                               min="2000"
+                                               max="2100"
+                                               placeholder="2024">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="end_year" class="form-label">
+                                            Năm kết thúc <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               id="end_year" 
+                                               name="end_year"
+                                               value="{{ year.year.split('-')[1] if year else '' }}"
+                                               min="2000"
+                                               max="2100"
+                                               placeholder="2025"
+                                               readonly>
+                                        <div class="invalid-feedback"></div>
+                                        <div class="form-text">Tự động = Năm bắt đầu + 1</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-1"></i>
+                                <strong>Định dạng:</strong> Năm học sẽ có dạng "2024-2025"
+                            </div>
+                        </div>
+
+                        <!-- Date Range -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-calendar-week text-primary me-2"></i>
+                                Thời gian
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="start_date" class="form-label">
+                                            Ngày bắt đầu <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="date" 
+                                               class="form-control" 
+                                               id="start_date" 
+                                               name="start_date"
+                                               value="{{ year.start_date.isoformat() if year else '' }}">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="end_date" class="form-label">
+                                            Ngày kết thúc <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="date" 
+                                               class="form-control" 
+                                               id="end_date" 
+                                               name="end_date"
+                                               value="{{ year.end_date.isoformat() if year else '' }}">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-primary" 
+                                    onclick="setDefaultDates()">
+                                <i class="fas fa-magic me-1"></i>
+                                Thiết lập mặc định (01/09 - 31/05)
+                            </button>
+                        </div>
+
+                        {% if year %}
+                        <!-- Status Section for Edit -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-toggle-on text-primary me-2"></i>
+                                Trạng thái
+                            </h5>
+                            
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="is_active" 
+                                       name="is_active"
+                                       {{ 'checked' if year.is_active else '' }}>
+                                <label class="form-check-label" for="is_active">
+                                    Đây là niên khóa đang hoạt động
+                                </label>
+                            </div>
+                            <div class="form-text text-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                Chỉ có một niên khóa được phép hoạt động tại một thời điểm
+                            </div>
+                        </div>
+
+                        <!-- Year Info -->
+                        <div class="alert alert-info">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <small>
+                                        <i class="fas fa-calendar me-1"></i>
+                                        <strong>Ngày tạo:</strong> 
+                                        {{ year.created_at.strftime('%d/%m/%Y %H:%M') if year.created_at else 'N/A' }}
+                                    </small>
+                                </div>
+                                <div class="col-md-12">
+                                    <small>
+                                        <i class="fas fa-chalkboard me-1"></i>
+                                        <strong>Số lớp:</strong> 
+                                        {{ year.classrooms.count() }} lớp
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                            <a href="{{ url_for('academic_year.list_academic_years') }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i>
+                                Hủy bỏ
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-save me-1"></i>
+                                {{ 'Cập nhật' if year else 'Tạo mới' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const isEditing = {{ 'true' if year else 'false' }};
+    const yearId = {{ year.id if year else 'null' }};
+
+    // Auto-update end year when start year changes
+    const startYearInput = document.getElementById('start_year');
+    const endYearInput = document.getElementById('end_year');
+    
+    startYearInput.addEventListener('input', function() {
+        const startYear = parseInt(this.value);
+        if (!isNaN(startYear)) {
+            endYearInput.value = startYear + 1;
+        }
+    });
+
+    // Set default dates function
+    window.setDefaultDates = function() {
+        const startYear = parseInt(startYearInput.value);
+        const endYear = parseInt(endYearInput.value);
+        
+        if (!isNaN(startYear) && !isNaN(endYear)) {
+            // September 1st of start year
+            const startDate = `${startYear}-09-01`;
+            // May 31st of end year
+            const endDate = `${endYear}-05-31`;
+            
+            document.getElementById('start_date').value = startDate;
+            document.getElementById('end_date').value = endDate;
+            if (window.FaceID && FaceID.NotificationSystem) {
+                FaceID.NotificationSystem.success('Đã thiết lập ngày mặc định!');
+            } else {
+                alert('Đã thiết lập ngày mặc định');
+            }
+        } else {
+            if (window.FaceID && FaceID.NotificationSystem) {
+                FaceID.NotificationSystem.warning('Vui lòng nhập năm học trước');
+            } else {
+                alert('Vui lòng nhập năm học trước');
+            }
+        }
+    };
+
+    // Setup form submission
+    const form = document.getElementById('yearForm');
+    form.addEventListener('submit', handleSubmit);
+
+    // Handle form submission
+    async function handleSubmit(event) {
+        event.preventDefault();
+        
+        // Clear previous errors
+        document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        
+        const formData = new FormData(form);
+        const yearData = Object.fromEntries(formData.entries());
+        
+        // Convert checkbox to boolean - important for proper JSON handling
+        const isActiveCheckbox = document.getElementById('is_active');
+        yearData.is_active = isActiveCheckbox ? isActiveCheckbox.checked : false;
+        
+        // Build year string
+        yearData.year = `${yearData.start_year}-${yearData.end_year}`;
+        
+        // Debug log
+        console.log('Form data to submit:', yearData);
+        
+        // Validate
+        if (!validateForm(yearData)) {
+            return;
+        }
+
+        try {
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang lưu...';
+
+            let response;
+            if (isEditing) {
+                console.log(`Sending PUT request to /academic-year/api/${yearId}`);
+                response = await fetch(`/academic-year/api/${yearId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(yearData)
+                });
+            } else {
+                console.log('Sending POST request to /academic-year/api/create');
+                response = await fetch('/academic-year/api/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(yearData)
+                });
+            }
+
+            const data = await response.json();
+            console.log('Response:', data);
+
+            if (data.success) {
+                if (window.FaceID && FaceID.NotificationSystem) {
+                    FaceID.NotificationSystem.success(`${isEditing ? 'Cập nhật' : 'Tạo'} niên khóa thành công`);
+                } else {
+                    alert(`${isEditing ? 'Cập nhật' : 'Tạo'} niên khóa thành công`);
+                }
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("academic_year.list_academic_years") }}';
+                }, 1000);
+            } else {
+                if (window.FaceID && FaceID.NotificationSystem) {
+                    FaceID.NotificationSystem.error(data.message || `Lỗi khi ${isEditing ? 'cập nhật' : 'tạo'} niên khóa`);
+                } else {
+                    alert(data.message || `Lỗi khi ${isEditing ? 'cập nhật' : 'tạo'} niên khóa`);
+                }
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>{{ "Cập nhật" if year else "Tạo mới" }}';
+            }
+        } catch (error) {
+            console.error('Error saving year:', error);
+            if (window.FaceID && FaceID.NotificationSystem) {
+                FaceID.NotificationSystem.error(`Lỗi kết nối khi ${isEditing ? 'cập nhật' : 'tạo'} niên khóa`);
+            } else {
+                alert(`Lỗi kết nối khi ${isEditing ? 'cập nhật' : 'tạo'} niên khóa`);
+            }
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>{{ "Cập nhật" if year else "Tạo mới" }}';
+        }
+    }
+
+    // Validate form
+    function validateForm(yearData) {
+        let isValid = true;
+        
+        // Các trường bắt buộc
+        const requiredFields = ['start_year', 'end_year', 'start_date', 'end_date'];
+        requiredFields.forEach(field => {
+            if (!yearData[field] || yearData[field].trim() === '') {
+                markFieldInvalid(field, 'Vui lòng nhập thông tin này');
+                isValid = false;
+            }
+        });
+
+        // Kiểm tra năm kết thúc
+        const startYear = parseInt(yearData.start_year);
+        const endYear = parseInt(yearData.end_year);
+        
+        if (!isNaN(startYear) && !isNaN(endYear)) {
+            if (endYear !== startYear + 1) {
+                markFieldInvalid('end_year', 'Năm kết thúc phải lớn hơn năm bắt đầu đúng 1 năm');
+                isValid = false;
+            }
+        }
+
+        // Kiểm tra ngày bắt đầu/kết thúc
+        if (yearData.start_date && yearData.end_date) {
+            const startDate = new Date(yearData.start_date);
+            const endDate = new Date(yearData.end_date);
+            
+            if (endDate <= startDate) {
+                markFieldInvalid('end_date', 'Ngày kết thúc phải sau ngày bắt đầu');
+                isValid = false;
+            }
+        }
+
+        return isValid;
+    }
+
+    // Mark field as invalid
+    function markFieldInvalid(fieldName, message) {
+        const field = document.getElementById(fieldName);
+        const feedback = field.parentNode.querySelector('.invalid-feedback');
+        
+        field.classList.add('is-invalid');
+        if (feedback) {
+            feedback.textContent = message;
+        }
+    }
+
+    // Initialize end year on load
+    if (!isEditing && startYearInput.value) {
+        const startYear = parseInt(startYearInput.value);
+        if (!isNaN(startYear)) {
+            endYearInput.value = startYear + 1;
+        }
+    }
+});
+</script>
+{% endblock %}

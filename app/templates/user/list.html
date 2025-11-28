@@ -1,0 +1,630 @@
+{% extends "layout.html" %}
+
+{% block title %}Quản lý người dùng{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+    <a href="{{ url_for('admin.dashboard') }}" class="text-decoration-none">
+        <i class="fas fa-home me-1"></i>Trang chủ
+    </a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">
+    Quản lý người dùng
+</li>
+{% endblock %}
+
+{% block layout_content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+          
+
+            <!-- Filters -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form class="row g-3" id="filterForm" autocomplete="off" onsubmit="return false;">
+                        <div class="col-md-4">
+                            <label class="form-label">Tìm kiếm</label>
+                            <input type="text" class="form-control" id="searchInput" placeholder="Tên, email, username...">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Vai trò</label>
+                            <select class="form-select" id="roleFilter">
+                                <option value="">Tất cả vai trò</option>
+                                <option value="admin">Quản trị viên</option>
+                                <option value="teacher">Giáo viên</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Trạng thái</label>
+                            <select class="form-select" id="statusFilter">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="active">Hoạt động</option>
+                                <option value="inactive">Tạm khóa</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end gap-2">
+                            <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()" title="Đặt lại bộ lọc">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                            <button type="submit" class="btn btn-primary" id="searchBtn" title="Tìm kiếm">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- Header -->
+            <div class="page-header">
+                <h2 class="page-header-title">
+                    <i class="fas fa-users me-2" style="color: #3b82f6;"></i>
+                    Danh sách người dùng
+                </h2>
+                <div class="page-header-actions">
+                    <a href="{{ url_for('user.user_create_page') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Thêm người dùng
+                    </a>
+                </div>
+            </div>
+            <!-- Users Table -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Username</th>
+                                    <th>Tên đầy đủ</th>
+                                    <th>Email</th>
+                                    <th>Vai trò</th>
+                                    <th>Trạng thái</th>
+                                    <th>Lần đăng nhập cuối</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <nav aria-label="User pagination" class="mt-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="text-muted">
+                                Hiển thị <span id="showingInfo">0 - 0 của 0</span> người dùng
+                            </div>
+                            <ul class="pagination mb-0" id="pagination">
+                                <!-- Will be populated by JavaScript -->
+                            </ul>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentPage = 1;
+    let currentLimit = 10;
+    let currentSearch = '';
+    let currentRole = '';
+    let currentStatus = '';
+
+    // Initialize user management
+    function initializeUserManagement() {
+        loadUserList();
+        setupEventListeners();
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+        // Submit filter form
+        document.getElementById('filterForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            currentSearch = document.getElementById('searchInput').value;
+            currentRole = document.getElementById('roleFilter').value;
+            currentStatus = document.getElementById('statusFilter').value;
+            currentPage = 1;
+            loadUserList();
+        });
+
+        // Enter key in search input submits form
+        document.getElementById('searchInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('searchBtn').click();
+            }
+        });
+    }
+
+    // Load user list
+    async function loadUserList() {
+        try {
+            const params = new URLSearchParams({
+                page: currentPage,
+                limit: currentLimit,
+                search: currentSearch,
+                role: currentRole,
+                status: currentStatus
+            });
+
+            const response = await fetch(`/users?${params}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('User pagination:', data.data.pagination);
+                // Store current user ID for comparison
+                renderUserList(data.data.users, data.data.current_user_id);
+                renderPagination(data.data.pagination);
+                updateShowingInfo(data.data.pagination);
+            } else {
+                window.FaceID?.NotificationSystem?.error(data.message || 'Lỗi khi tải danh sách người dùng');
+            }
+        } catch (error) {
+            console.error('Error loading users:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi tải danh sách người dùng');
+        }
+    }
+
+    // Render user list
+    function renderUserList(users, currentUserId) {
+        const tbody = document.querySelector('#usersTable tbody');
+        
+        if (!users || users.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="fas fa-users fa-2x mb-2 d-block"></i>
+                        Không có người dùng nào
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = users.map((user, index) => {
+            const stt = (currentPage - 1) * currentLimit + index + 1;
+            const statusBadge = user.is_active 
+                ? '<span class="badge bg-success">Hoạt động</span>'
+                : '<span class="badge bg-secondary">Tạm khóa</span>';
+            
+            const roleBadge = user.role === 'admin' 
+                ? '<span class="badge bg-danger">Quản trị viên</span>'
+                : '<span class="badge bg-primary">Giáo viên</span>';
+
+            const lastLogin = user.last_login 
+                ? new Date(user.last_login).toLocaleString('vi-VN')
+                : 'Chưa đăng nhập';
+
+            const isCurrentUser = user.id === currentUserId;
+            const statusButtonDisabled = isCurrentUser ? 'disabled' : '';
+            const deleteButtonDisabled = isCurrentUser ? 'disabled' : '';
+
+            return `
+                <tr>
+                    <td>${stt}</td>
+                    <td>${user.username}${isCurrentUser ? '<br><small class="text-primary fw-bold">(Bạn)</small>' : ''}</td>
+                    <td>${user.full_name}</td>
+                    <td>${user.email}</td>
+                    <td>${roleBadge}</td>
+                    <td>${statusBadge}</td>
+                    <td>${lastLogin}</td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <a href="/users/${user.id}/edit" class="btn btn-sm btn-outline-primary" title="Chỉnh sửa">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-${user.is_active ? 'warning' : 'success'}" 
+                                    onclick="toggleUserStatus(${user.id}, '${user.is_active ? 'deactivate' : 'activate'}')"
+                                    title="${user.is_active ? 'Khóa tài khoản' : 'Kích hoạt tài khoản'}"
+                                    ${statusButtonDisabled}>
+                                <i class="fas fa-${user.is_active ? 'lock' : 'unlock'}"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                    onclick="resetUserPassword(${user.id})" title="Reset mật khẩu">
+                                <i class="fas fa-key"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    onclick="deleteUser(${user.id})" title="Xóa"
+                                    ${deleteButtonDisabled}>
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Toggle user status
+    window.toggleUserStatus = async function(userId, action) {
+        const actionText = action === 'activate' ? 'kích hoạt' : 'khóa';
+        const modalHtml = `
+            <div class="modal fade" id="confirmModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Xác nhận ${actionText}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Bạn có chắc chắn muốn ${actionText} tài khoản này?</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                            <button type="button" class="btn btn-primary" id="confirmBtn">Xác nhận</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHtml;
+        document.body.appendChild(modalContainer);
+
+        const modal = new bootstrap.Modal(modalContainer.querySelector('.modal'));
+        const confirmBtn = modalContainer.querySelector('#confirmBtn');
+
+        confirmBtn.addEventListener('click', async function() {
+            modal.hide();
+
+            try {
+                const response = await fetch(`/users/${userId}/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.FaceID?.NotificationSystem?.success(`${actionText.charAt(0).toUpperCase() + actionText.slice(1)} tài khoản thành công`);
+                    loadUserList();
+                } else {
+                    window.FaceID?.NotificationSystem?.error(data.message || `Lỗi khi ${actionText} tài khoản`);
+                }
+            } catch (error) {
+                console.error(`Error ${action} user:`, error);
+                window.FaceID?.NotificationSystem?.error(`Lỗi kết nối khi ${actionText} tài khoản`);
+            } finally {
+                modalContainer.remove();
+            }
+        });
+
+        modal.show();
+    };
+
+    // Reset user password
+    window.resetUserPassword = async function(userId) {
+        const modalHtml = `
+            <div class="modal fade" id="resetPasswordModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Reset mật khẩu người dùng</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="newPassword" class="form-label">Mật khẩu mới <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="newPassword" placeholder="Nhập mật khẩu mới (8-100 ký tự)">
+                                    <button class="btn btn-outline-secondary" type="button" id="togglePasswordBtn">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <ul class="list-unstyled mt-2 mb-1" id="passwordChecklist">
+                                    <li id="pw-length" class="text-danger"><i class="fas fa-times me-1"></i> Độ dài: 8-100 ký tự</li>
+                                    <li id="pw-uppercase" class="text-danger"><i class="fas fa-times me-1"></i> Chữ hoa: Ít nhất 1 chữ hoa</li>
+                                    <li id="pw-lowercase" class="text-danger"><i class="fas fa-times me-1"></i> Chữ thường: Ít nhất 1 chữ thường</li>
+                                    <li id="pw-digit" class="text-danger"><i class="fas fa-times me-1"></i> Chữ số: Ít nhất 1 chữ số</li>
+                                </ul>
+                                <small class="text-danger d-none" id="passwordError"></small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                            <button type="button" class="btn btn-primary" id="confirmBtn">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHtml;
+        document.body.appendChild(modalContainer);
+
+        const modal = new bootstrap.Modal(modalContainer.querySelector('.modal'));
+        const passwordInput = modalContainer.querySelector('#newPassword');
+        const toggleBtn = modalContainer.querySelector('#togglePasswordBtn');
+        const confirmBtn = modalContainer.querySelector('#confirmBtn');
+        const passwordError = modalContainer.querySelector('#passwordError');
+        const checklist = {
+            length: modalContainer.querySelector('#pw-length'),
+            uppercase: modalContainer.querySelector('#pw-uppercase'),
+            lowercase: modalContainer.querySelector('#pw-lowercase'),
+            digit: modalContainer.querySelector('#pw-digit')
+        };
+
+        // Toggle password visibility
+        toggleBtn.addEventListener('click', function() {
+            const icon = toggleBtn.querySelector('i');
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+
+        // Real-time checklist validation
+        passwordInput.addEventListener('input', function() {
+            const val = passwordInput.value;
+            // Length
+            if (val.length >= 8 && val.length <= 100) {
+                checklist.length.classList.remove('text-danger');
+                checklist.length.classList.add('text-success');
+                checklist.length.innerHTML = '<i class="fas fa-check me-1"></i> Độ dài: 8-100 ký tự';
+            } else {
+                checklist.length.classList.add('text-danger');
+                checklist.length.classList.remove('text-success');
+                checklist.length.innerHTML = '<i class="fas fa-times me-1"></i> Độ dài: 8-100 ký tự';
+            }
+            // Uppercase
+            if (/[A-Z]/.test(val)) {
+                checklist.uppercase.classList.remove('text-danger');
+                checklist.uppercase.classList.add('text-success');
+                checklist.uppercase.innerHTML = '<i class="fas fa-check me-1"></i> Chữ hoa: Ít nhất 1 chữ hoa';
+            } else {
+                checklist.uppercase.classList.add('text-danger');
+                checklist.uppercase.classList.remove('text-success');
+                checklist.uppercase.innerHTML = '<i class="fas fa-times me-1"></i> Chữ hoa: Ít nhất 1 chữ hoa';
+            }
+            // Lowercase
+            if (/[a-z]/.test(val)) {
+                checklist.lowercase.classList.remove('text-danger');
+                checklist.lowercase.classList.add('text-success');
+                checklist.lowercase.innerHTML = '<i class="fas fa-check me-1"></i> Chữ thường: Ít nhất 1 chữ thường';
+            } else {
+                checklist.lowercase.classList.add('text-danger');
+                checklist.lowercase.classList.remove('text-success');
+                checklist.lowercase.innerHTML = '<i class="fas fa-times me-1"></i> Chữ thường: Ít nhất 1 chữ thường';
+            }
+            // Digit
+            if (/\d/.test(val)) {
+                checklist.digit.classList.remove('text-danger');
+                checklist.digit.classList.add('text-success');
+                checklist.digit.innerHTML = '<i class="fas fa-check me-1"></i> Chữ số: Ít nhất 1 chữ số';
+            } else {
+                checklist.digit.classList.add('text-danger');
+                checklist.digit.classList.remove('text-success');
+                checklist.digit.innerHTML = '<i class="fas fa-times me-1"></i> Chữ số: Ít nhất 1 chữ số';
+            }
+        });
+
+        // Validate and submit
+        confirmBtn.addEventListener('click', async function() {
+            const newPassword = passwordInput.value.trim();
+            passwordError.classList.add('d-none');
+            passwordError.textContent = '';
+
+            // Validation
+            let valid = true;
+            if (!newPassword) {
+                passwordError.textContent = 'Vui lòng nhập mật khẩu mới';
+                passwordError.classList.remove('d-none');
+                valid = false;
+            } else if (newPassword.length < 8 || newPassword.length > 100) {
+                passwordError.textContent = 'Mật khẩu phải từ 8-100 ký tự';
+                passwordError.classList.remove('d-none');
+                valid = false;
+            } else if (!/[A-Z]/.test(newPassword)) {
+                passwordError.textContent = 'Mật khẩu phải chứa ít nhất 1 chữ hoa';
+                passwordError.classList.remove('d-none');
+                valid = false;
+            } else if (!/[a-z]/.test(newPassword)) {
+                passwordError.textContent = 'Mật khẩu phải chứa ít nhất 1 chữ thường';
+                passwordError.classList.remove('d-none');
+                valid = false;
+            } else if (!/\d/.test(newPassword)) {
+                passwordError.textContent = 'Mật khẩu phải chứa ít nhất 1 chữ số';
+                passwordError.classList.remove('d-none');
+                valid = false;
+            }
+            if (!valid) return;
+
+            modal.hide();
+            try {
+                const response = await fetch(`/users/${userId}/reset-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ password: newPassword })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    window.FaceID?.NotificationSystem?.success('Reset mật khẩu thành công');
+                } else {
+                    window.FaceID?.NotificationSystem?.error(data.message || 'Lỗi khi reset mật khẩu');
+                }
+            } catch (error) {
+                console.error('Error resetting password:', error);
+                window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi reset mật khẩu');
+            } finally {
+                modalContainer.remove();
+            }
+        });
+
+        modal.show();
+        passwordInput.focus();
+    };
+
+    // Delete user
+    window.deleteUser = async function(userId) {
+        const modalHtml = `
+            <div class="modal fade" id="confirmModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Xác nhận xóa tài khoản</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Bạn có chắc chắn muốn xóa tài khoản này? Hành động này không thể hoàn tác.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                            <button type="button" class="btn btn-danger" id="confirmBtn">Xóa</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHtml;
+        document.body.appendChild(modalContainer);
+
+        const modal = new bootstrap.Modal(modalContainer.querySelector('.modal'));
+        const confirmBtn = modalContainer.querySelector('#confirmBtn');
+
+        confirmBtn.addEventListener('click', async function() {
+            modal.hide();
+
+            try {
+                const response = await fetch(`/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.FaceID?.NotificationSystem?.success('Xóa tài khoản thành công');
+                    loadUserList();
+                } else {
+                    // Hiển thị message lỗi từ backend
+                    window.FaceID?.NotificationSystem?.error(data.message || 'Lỗi khi xóa tài khoản');
+                }
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi xóa tài khoản');
+            } finally {
+                modalContainer.remove();
+            }
+        });
+
+        modal.show();
+    };
+
+    // Reset filters
+    window.resetFilters = function() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('roleFilter').value = '';
+        document.getElementById('statusFilter').value = '';
+        
+        currentPage = 1;
+        currentSearch = '';
+        currentRole = '';
+        currentStatus = '';
+        
+        loadUserList();
+        if (window.FaceID && FaceID.NotificationSystem) {
+            FaceID.NotificationSystem.success('Đã đặt lại bộ lọc');
+        }
+    };
+
+    // Pagination
+    function renderPagination(pagination) {
+        const paginationEl = document.getElementById('pagination');
+        const totalPages = pagination.pages;
+        
+        if (totalPages <= 1) {
+            paginationEl.innerHTML = '';
+            return;
+        }
+
+        let paginationHTML = '';
+        
+        // Previous button
+        if (currentPage > 1) {
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${currentPage - 1})">‹</a></li>`;
+        }
+        
+        // Page numbers
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, currentPage + 2);
+        
+        if (startPage > 1) {
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(1)">1</a></li>`;
+            if (startPage > 2) {
+                paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            paginationHTML += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+            </li>`;
+        }
+        
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${totalPages})">${totalPages}</a></li>`;
+        }
+        
+        // Next button
+        if (currentPage < totalPages) {
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${currentPage + 1})">›</a></li>`;
+        }
+        
+        paginationEl.innerHTML = paginationHTML;
+    }
+
+    // Change page
+    window.changePage = function(page) {
+        currentPage = page;
+        loadUserList();
+    };
+
+    // Update showing info
+    function updateShowingInfo(pagination) {
+        const start = (currentPage - 1) * currentLimit + 1;
+        const end = Math.min(currentPage * currentLimit, pagination.total);
+        const total = pagination.total;
+        
+        document.getElementById('showingInfo').textContent = `${start} - ${end} của ${total}`;
+    }
+
+    // Debounce function
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Initialize on page load
+    initializeUserManagement();
+});
+</script>
+{% endblock %}

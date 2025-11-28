@@ -1,0 +1,1292 @@
+{% extends "layout.html" %}
+
+{% block title %}Chỉnh sửa điểm danh - {{ session_data.class_name }}{% endblock %}
+
+{% block page_title %}Chỉnh sửa kết quả điểm danh{% endblock %}
+
+{% block page_description %}Điều chỉnh và cập nhật thông tin điểm danh{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+    <a href="{{ url_for('attendance.history') }}">
+        <i class="fas fa-calendar-check"></i>
+        Lịch sử điểm danh
+    </a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{{ url_for('attendance.view_result', id=session_data.id) }}">
+        Kết quả điểm danh
+    </a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">
+    Chỉnh sửa
+</li>
+{% endblock %}
+
+{% block page_actions %}
+<button type="button" class="btn btn-success" onclick="saveAllChanges()" id="save-btn">
+    <i class="fas fa-save me-2"></i>
+    Lưu thay đổi
+</button>
+<button type="button" class="btn btn-warning" onclick="undoAllChanges()" id="undo-btn" disabled>
+    <i class="fas fa-undo me-2"></i>
+    Hoàn tác
+</button>
+<button type="button" class="btn btn-info" onclick="bulkEdit()">
+    <i class="fas fa-edit me-2"></i>
+    Sửa hàng loạt
+</button>
+<div class="dropdown d-inline-block">
+    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="fas fa-ellipsis-h me-2"></i>
+        Thêm
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#" onclick="markAllPresent()">
+            <i class="fas fa-user-check me-2"></i>Đánh dấu tất cả có mặt
+        </a></li>
+        <li><a class="dropdown-item" href="#" onclick="markAllAbsent()">
+            <i class="fas fa-user-times me-2"></i>Đánh dấu tất cả vắng
+        </a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="#" onclick="resetToOriginal()">
+            <i class="fas fa-refresh me-2"></i>Khôi phục ban đầu
+        </a></li>
+    </ul>
+</div>
+<a href="{{ url_for('attendance.view_result', id=session_data.id) }}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left me-2"></i>
+    Quay lại
+</a>
+{% endblock %}
+
+{% block layout_content %}
+<div class="row">
+    <div class="col-lg-9">
+        <!-- Edit Form Alert -->
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Lưu ý:</strong> Mọi thay đổi sẽ được ghi lại và có thể kiểm tra lại sau này. 
+            Hãy đảm bảo thông tin chính xác trước khi lưu.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        
+        <!-- Session Information -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h6 class="m-0 font-weight-bold text-primary">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Thông tin buổi học
+                        </h6>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <span class="badge bg-warning fs-6">
+                            <i class="fas fa-edit me-1"></i>Đang chỉnh sửa
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="session-info">
+                            <div class="info-row">
+                                <label>Lớp học:</label>
+                                <span class="fw-bold text-primary">{{ session_data.class_name }}</span>
+                            </div>
+                            <div class="info-row">
+                                <label>Giáo viên:</label>
+                                <span>{{ session_data.teacher_name }}</span>
+                            </div>
+                            <div class="info-row">
+                                <label>Buổi học:</label>
+                                <span class="badge bg-info">{{ session_data.session_type_display }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="session-info">
+                            <div class="info-row">
+                                <label>Ngày:</label>
+                                <span>{{ session_data.date | format_date }}</span>
+                            </div>
+                            <div class="info-row">
+                                <label>Tổng số thay đổi:</label>
+                                <span class="fw-bold text-warning" id="total-changes">0</span>
+                            </div>
+                            <div class="info-row">
+                                <label>Người chỉnh sửa:</label>
+                                <span>{{ current_user.full_name }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions Bar -->
+        <div class="card shadow mb-4">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="quick-filters">
+                            <label class="form-label me-3 mb-0">Lọc nhanh:</label>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary active" onclick="filterByStatus('all')">
+                                    Tất cả
+                                </button>
+                                <button type="button" class="btn btn-outline-success" onclick="filterByStatus('present')">
+                                    Có mặt
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" onclick="filterByStatus('absent')">
+                                    Vắng
+                                </button>
+                                <button type="button" class="btn btn-outline-warning" onclick="filterByStatus('late')">
+                                    Muộn
+                                </button>
+                                <button type="button" class="btn btn-outline-info" onclick="filterByStatus('changed')">
+                                    Đã thay đổi
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <input type="text" class="form-control form-control-sm d-inline-block w-auto" 
+                               id="search-student" placeholder="Tìm học sinh..." style="max-width: 200px;">
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="selectAllVisible()">
+                            <i class="fas fa-check-square me-1"></i>Chọn hiển thị
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Attendance Edit Table -->
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h6 class="m-0 font-weight-bold text-primary">
+                            <i class="fas fa-edit me-2"></i>
+                            Chỉnh sửa điểm danh
+                        </h6>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            Cập nhật lần cuối: <span id="last-updated">{{ session_data.updated_at | format_datetime if session_data.updated_at else 'Chưa có' }}</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <form id="attendance-edit-form">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="edit-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="5%">
+                                        <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                                    </th>
+                                    <th width="15%">Mã học sinh</th>
+                                    <th width="25%">Họ và tên</th>
+                                    <th width="20%">Trạng thái</th>
+                                    <th width="20%">Thời gian</th>
+                                    <th width="10%">Ghi chú</th>
+                                    <th width="5%">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="edit-tbody">
+                                {% for record in attendance_records %}
+                                <tr data-record-id="{{ record.id }}" data-original-status="{{ record.status }}" 
+                                    data-student-name="{{ record.student_name.lower() }}" 
+                                    data-student-code="{{ record.student_code.lower() }}"
+                                    class="{% if record.is_changed %}table-warning{% endif %}">
+                                    <td>
+                                        <input type="checkbox" class="record-checkbox" value="{{ record.id }}">
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold">{{ record.student_code }}</span>
+                                        {% if record.is_changed %}
+                                        <i class="fas fa-edit text-warning ms-1" title="Đã thay đổi"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <img src="{{ record.student_avatar or '/static/images/default-avatar.png' }}" 
+                                                 alt="Avatar" class="rounded-circle me-2" width="32" height="32">
+                                            <div>
+                                                <div>{{ record.student_name }}</div>
+                                                {% if record.original_status != record.status %}
+                                                <small class="text-muted">
+                                                    Trước: <span class="badge badge-sm {{ get_status_badge_class(record.original_status) }}">
+                                                        {{ get_status_display(record.original_status) }}
+                                                    </span>
+                                                </small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <select class="form-select form-select-sm status-select" 
+                                                name="status_{{ record.id }}" 
+                                                onchange="updateStatus({{ record.id }}, this.value)"
+                                                data-original="{{ record.original_status }}">
+                                            <option value="present" {{ 'selected' if record.status == 'present' else '' }}>Có mặt</option>
+                                            <option value="absent" {{ 'selected' if record.status == 'absent' else '' }}>Vắng</option>
+                                            <option value="late" {{ 'selected' if record.status == 'late' else '' }}>Muộn</option>
+                                            <option value="excused" {{ 'selected' if record.status == 'excused' else '' }}>Có phép</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        {% if record.status in ['present', 'late'] %}
+                                        <input type="time" class="form-control form-control-sm time-input" 
+                                               name="time_{{ record.id }}" 
+                                               value="{{ record.check_in_time.strftime('%H:%M') if record.check_in_time else '' }}"
+                                               onchange="updateTime({{ record.id }}, this.value)">
+                                        <small class="text-muted">
+                                            {{ record.check_in_time.strftime('%d/%m/%Y') if record.check_in_time else session_data.date | format_date }}
+                                        </small>
+                                        {% else %}
+                                        <input type="time" class="form-control form-control-sm time-input" 
+                                               name="time_{{ record.id }}" 
+                                               value="" disabled>
+                                        <small class="text-muted">-</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm notes-input" 
+                                               name="notes_{{ record.id }}" 
+                                               value="{{ record.notes or '' }}" 
+                                               placeholder="Ghi chú..."
+                                               onchange="updateNotes({{ record.id }}, this.value)">
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-warning reset-btn" 
+                                                    onclick="resetRecord({{ record.id }})" title="Khôi phục">
+                                                <i class="fas fa-undo"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                                    onclick="viewHistory({{ record.id }})" title="Lịch sử">
+                                                <i class="fas fa-history"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+                
+                <!-- No Results -->
+                <div id="no-results" class="text-center py-4 d-none">
+                    <i class="fas fa-search fa-2x text-muted mb-3"></i>
+                    <h5 class="text-muted">Không tìm thấy kết quả</h5>
+                    <p class="text-muted">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-3">
+        <!-- Change Summary -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-clipboard-list me-2"></i>
+                    Tóm tắt thay đổi
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="change-stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Tổng thay đổi</div>
+                        <div class="stat-value text-warning" id="changes-count">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Có mặt → Vắng</div>
+                        <div class="stat-value text-danger" id="present-to-absent">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Vắng → Có mặt</div>
+                        <div class="stat-value text-success" id="absent-to-present">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Thay đổi khác</div>
+                        <div class="stat-value text-info" id="other-changes">0</div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-warning" role="progressbar" 
+                             id="changes-progress" style="width: 0%"></div>
+                    </div>
+                    <small class="text-muted mt-1 d-block">
+                        <span id="changes-percentage">0%</span> học sinh có thay đổi
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bulk Edit Panel -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-tools me-2"></i>
+                    Sửa hàng loạt
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="bulk-actions">
+                    <div class="mb-3">
+                        <label class="form-label">Thay đổi trạng thái:</label>
+                        <select class="form-select form-select-sm" id="bulk-status">
+                            <option value="">-- Chọn trạng thái --</option>
+                            <option value="present">Có mặt</option>
+                            <option value="absent">Vắng</option>
+                            <option value="late">Muộn</option>
+                            <option value="excused">Có phép</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Thời gian chung:</label>
+                        <input type="time" class="form-control form-control-sm" id="bulk-time">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Ghi chú chung:</label>
+                        <input type="text" class="form-control form-control-sm" id="bulk-notes" 
+                               placeholder="Ghi chú cho các học sinh đã chọn...">
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="applyBulkChanges()">
+                            <i class="fas fa-apply me-1"></i>
+                            Áp dụng
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearBulkForm()">
+                            <i class="fas fa-times me-1"></i>
+                            Xóa form
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="selected-info mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Đã chọn: <span id="selected-count">0</span> học sinh
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Validation Warnings -->
+        <div class="card shadow mb-4" id="validation-panel" style="display: none;">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Cảnh báo
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="validation-messages">
+                    <!-- Validation messages will appear here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-bolt me-2"></i>
+                    Thao tác nhanh
+                </h6>
+            </div>
+            <div class="card-body d-grid gap-2">
+                <button type="button" class="btn btn-success btn-sm" onclick="saveAndContinue()">
+                    <i class="fas fa-save me-2"></i>
+                    Lưu và tiếp tục
+                </button>
+                <button type="button" class="btn btn-info btn-sm" onclick="previewChanges()">
+                    <i class="fas fa-eye me-2"></i>
+                    Xem trước
+                </button>
+                <button type="button" class="btn btn-warning btn-sm" onclick="exportChanges()">
+                    <i class="fas fa-file-export me-2"></i>
+                    Xuất thay đổi
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="loadTemplate()">
+                    <i class="fas fa-template me-2"></i>
+                    Tải mẫu
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Lịch sử thay đổi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="history-content">
+                    <!-- History will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Edit Modal -->
+<div class="modal fade" id="bulkEditModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Sửa hàng loạt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn đang thực hiện thay đổi cho <strong id="bulk-student-count">0</strong> học sinh.</p>
+                <div class="bulk-preview" id="bulk-preview">
+                    <!-- Bulk changes preview -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="confirmBulkEdit()">
+                    <i class="fas fa-check me-2"></i>
+                    Xác nhận
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .info-row:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    
+    .info-row label {
+        color: #6c757d;
+        font-weight: 500;
+        margin-bottom: 0;
+    }
+    
+    .change-stats .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .change-stats .stat-item:last-child {
+        border-bottom: none;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+    
+    .stat-value {
+        font-weight: 700;
+        font-size: 1.25rem;
+    }
+    
+    .quick-filters .btn-group-sm .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.75rem;
+    }
+    
+    .table th {
+        border-top: none;
+        font-weight: 600;
+        color: #5a5c69;
+        font-size: 0.875rem;
+        background: #f8f9fc;
+    }
+    
+    .table td {
+        vertical-align: middle;
+        font-size: 0.875rem;
+    }
+    
+    .status-select,
+    .time-input,
+    .notes-input {
+        font-size: 0.875rem;
+    }
+    
+    .table-warning {
+        background-color: #fff3cd !important;
+    }
+    
+    .record-checkbox {
+        transform: scale(1.1);
+    }
+    
+    .bulk-actions .form-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #5a5c69;
+    }
+    
+    .selected-info {
+        padding-top: 0.75rem;
+        border-top: 1px solid #e3e6f0;
+    }
+    
+    .badge-sm {
+        font-size: 0.65rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .validation-panel {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .validation-message {
+        padding: 0.5rem;
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 0.25rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .reset-btn {
+        opacity: 0.6;
+        transition: opacity 0.3s;
+    }
+    
+    .reset-btn:hover {
+        opacity: 1;
+    }
+    
+    .time-input:disabled {
+        background-color: #f8f9fa;
+        opacity: 0.6;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let sessionId = {{ session_data.id }};
+let originalData = {};
+let currentChanges = {};
+let selectedRecords = new Set();
+
+FaceID.DOMUtils.ready(() => {
+    initializeEditForm();
+});
+
+function initializeEditForm() {
+    // Store original data
+    storeOriginalData();
+    
+    // Setup event listeners
+    setupEventListeners();
+    
+    // Initialize change tracking
+    updateChangesSummary();
+    
+    // Check for unsaved changes on page unload
+    setupUnloadHandler();
+}
+
+function storeOriginalData() {
+    const rows = document.querySelectorAll('#edit-tbody tr');
+    
+    rows.forEach(row => {
+        const recordId = row.dataset.recordId;
+        const statusSelect = row.querySelector('.status-select');
+        const timeInput = row.querySelector('.time-input');
+        const notesInput = row.querySelector('.notes-input');
+        
+        originalData[recordId] = {
+            status: statusSelect.dataset.original,
+            time: timeInput.value,
+            notes: notesInput.value
+        };
+    });
+}
+
+function setupEventListeners() {
+    // Search functionality
+    document.getElementById('search-student').addEventListener('input', debounce(handleSearch, 300));
+    
+    // Select all checkbox
+    document.getElementById('select-all').addEventListener('change', toggleSelectAll);
+    
+    // Individual checkboxes
+    document.querySelectorAll('.record-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedRecords);
+    });
+    
+    // Form auto-save
+    setupAutoSave();
+}
+
+function setupAutoSave() {
+    // Auto-save changes every 30 seconds
+    setInterval(() => {
+        if (Object.keys(currentChanges).length > 0) {
+            autoSaveChanges();
+        }
+    }, 30000);
+}
+
+function setupUnloadHandler() {
+    window.addEventListener('beforeunload', (e) => {
+        if (Object.keys(currentChanges).length > 0) {
+            e.preventDefault();
+            e.returnValue = 'Bạn có thay đổi chưa được lưu. Bạn có chắc chắn muốn rời khỏi trang?';
+        }
+    });
+}
+
+function updateStatus(recordId, newStatus) {
+    const row = document.querySelector(`tr[data-record-id="${recordId}"]`);
+    const timeInput = row.querySelector('.time-input');
+    const originalStatus = originalData[recordId].status;
+    
+    // Update time input state
+    if (newStatus === 'present' || newStatus === 'late') {
+        timeInput.disabled = false;
+        if (!timeInput.value) {
+            timeInput.value = getCurrentTime();
+        }
+    } else {
+        timeInput.disabled = true;
+        timeInput.value = '';
+    }
+    
+    // Track changes
+    trackChange(recordId, 'status', newStatus, originalStatus);
+    
+    // Update row appearance
+    updateRowAppearance(row, recordId);
+    
+    // Update summary
+    updateChangesSummary();
+    
+    // Validate
+    validateChanges();
+}
+
+function updateTime(recordId, newTime) {
+    const originalTime = originalData[recordId].time;
+    trackChange(recordId, 'time', newTime, originalTime);
+    
+    const row = document.querySelector(`tr[data-record-id="${recordId}"]`);
+    updateRowAppearance(row, recordId);
+    updateChangesSummary();
+}
+
+function updateNotes(recordId, newNotes) {
+    const originalNotes = originalData[recordId].notes;
+    trackChange(recordId, 'notes', newNotes, originalNotes);
+    
+    const row = document.querySelector(`tr[data-record-id="${recordId}"]`);
+    updateRowAppearance(row, recordId);
+    updateChangesSummary();
+}
+
+function trackChange(recordId, field, newValue, originalValue) {
+    if (!currentChanges[recordId]) {
+        currentChanges[recordId] = {};
+    }
+    
+    if (newValue !== originalValue) {
+        currentChanges[recordId][field] = {
+            old: originalValue,
+            new: newValue
+        };
+    } else {
+        delete currentChanges[recordId][field];
+        
+        if (Object.keys(currentChanges[recordId]).length === 0) {
+            delete currentChanges[recordId];
+        }
+    }
+    
+    // Enable/disable save button
+    document.getElementById('save-btn').disabled = Object.keys(currentChanges).length === 0;
+    document.getElementById('undo-btn').disabled = Object.keys(currentChanges).length === 0;
+}
+
+function updateRowAppearance(row, recordId) {
+    const hasChanges = currentChanges[recordId] && Object.keys(currentChanges[recordId]).length > 0;
+    
+    if (hasChanges) {
+        row.classList.add('table-warning');
+        
+        // Add change indicator
+        let indicator = row.querySelector('.change-indicator');
+        if (!indicator) {
+            indicator = document.createElement('i');
+            indicator.className = 'fas fa-edit text-warning ms-1 change-indicator';
+            indicator.title = 'Đã thay đổi';
+            row.querySelector('td:nth-child(2) span').appendChild(indicator);
+        }
+    } else {
+        row.classList.remove('table-warning');
+        
+        // Remove change indicator
+        const indicator = row.querySelector('.change-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    }
+}
+
+function updateChangesSummary() {
+    const totalChanges = Object.keys(currentChanges).length;
+    
+    document.getElementById('total-changes').textContent = totalChanges;
+    document.getElementById('changes-count').textContent = totalChanges;
+    
+    // Calculate specific change types
+    let presentToAbsent = 0;
+    let absentToPresent = 0;
+    let otherChanges = 0;
+    
+    Object.values(currentChanges).forEach(changes => {
+        if (changes.status) {
+            const { old: oldStatus, new: newStatus } = changes.status;
+            if (oldStatus === 'present' && newStatus === 'absent') {
+                presentToAbsent++;
+            } else if (oldStatus === 'absent' && newStatus === 'present') {
+                absentToPresent++;
+            } else {
+                otherChanges++;
+            }
+        } else {
+            otherChanges++;
+        }
+    });
+    
+    document.getElementById('present-to-absent').textContent = presentToAbsent;
+    document.getElementById('absent-to-present').textContent = absentToPresent;
+    document.getElementById('other-changes').textContent = otherChanges;
+    
+    // Update progress
+    const totalStudents = document.querySelectorAll('#edit-tbody tr').length;
+    const changePercentage = totalStudents > 0 ? (totalChanges / totalStudents * 100) : 0;
+    
+    document.getElementById('changes-progress').style.width = `${changePercentage}%`;
+    document.getElementById('changes-percentage').textContent = `${changePercentage.toFixed(1)}%`;
+}
+
+function validateChanges() {
+    const warnings = [];
+    const validationPanel = document.getElementById('validation-panel');
+    const messagesContainer = document.getElementById('validation-messages');
+    
+    // Check for potential issues
+    Object.entries(currentChanges).forEach(([recordId, changes]) => {
+        if (changes.status) {
+            const { old: oldStatus, new: newStatus } = changes.status;
+            
+            // Check for late time validation
+            if (newStatus === 'late') {
+                const row = document.querySelector(`tr[data-record-id="${recordId}"]`);
+                const timeInput = row.querySelector('.time-input');
+                const timeValue = timeInput.value;
+                
+                if (!timeValue) {
+                    warnings.push(`Học sinh ${getStudentName(recordId)} được đánh dấu muộn nhưng chưa có thời gian`);
+                } else {
+                    // Check if time is actually late (after 7:30 AM for morning, 1:30 PM for afternoon)
+                    const [hours, minutes] = timeValue.split(':').map(Number);
+                    const sessionType = '{{ session_data.session_type }}';
+                    const isActuallyLate = sessionType === 'morning' ? 
+                        (hours > 7 || (hours === 7 && minutes > 30)) :
+                        (hours > 13 || (hours === 13 && minutes > 30));
+                    
+                    if (!isActuallyLate) {
+                        warnings.push(`Học sinh ${getStudentName(recordId)} được đánh dấu muộn nhưng thời gian không muộn`);
+                    }
+                }
+            }
+            
+            // Check for present without time
+            if (newStatus === 'present') {
+                const row = document.querySelector(`tr[data-record-id="${recordId}"]`);
+                const timeInput = row.querySelector('.time-input');
+                
+                if (!timeInput.value) {
+                    warnings.push(`Học sinh ${getStudentName(recordId)} có mặt nhưng chưa có thời gian điểm danh`);
+                }
+            }
+        }
+    });
+    
+    if (warnings.length > 0) {
+        messagesContainer.innerHTML = warnings.map(warning => `
+            <div class="validation-message">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${warning}
+            </div>
+        `).join('');
+        validationPanel.style.display = 'block';
+    } else {
+        validationPanel.style.display = 'none';
+    }
+}
+
+function getStudentName(recordId) {
+    const row = document.querySelector(`tr[data-record-id="${recordId}"]`);
+    return row.querySelector('td:nth-child(3) div > div').textContent.trim();
+}
+
+function getCurrentTime() {
+    const now = new Date();
+    return now.toTimeString().slice(0, 5);
+}
+
+async function saveAllChanges() {
+    if (Object.keys(currentChanges).length === 0) {
+        FaceID.NotificationSystem.info('Không có thay đổi nào để lưu');
+        return;
+    }
+    
+    // Show loading
+    const saveBtn = document.getElementById('save-btn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang lưu...';
+    saveBtn.disabled = true;
+    
+    try {
+        const response = await FaceID.APIClient.post(`/api/attendance/session/${sessionId}/edit`, {
+            changes: currentChanges,
+            reason: 'Manual edit from web interface'
+        });
+        
+        if (response.success) {
+            FaceID.NotificationSystem.success('Đã lưu thay đổi thành công');
+            
+            // Update original data
+            Object.entries(currentChanges).forEach(([recordId, changes]) => {
+                Object.entries(changes).forEach(([field, change]) => {
+                    originalData[recordId][field] = change.new;
+                });
+            });
+            
+            // Clear changes
+            currentChanges = {};
+            
+            // Update UI
+            updateChangesSummary();
+            
+            // Remove change indicators
+            document.querySelectorAll('#edit-tbody tr').forEach(row => {
+                row.classList.remove('table-warning');
+                const indicator = row.querySelector('.change-indicator');
+                if (indicator) indicator.remove();
+            });
+            
+            // Update last updated time
+            document.getElementById('last-updated').textContent = FaceID.Utils.formatDateTime(new Date());
+            
+        } else {
+            FaceID.NotificationSystem.error(response.message || 'Lỗi khi lưu thay đổi');
+        }
+    } catch (error) {
+        console.error('Error saving changes:', error);
+        FaceID.NotificationSystem.error('Lỗi khi lưu thay đổi');
+    } finally {
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    }
+}
+
+function undoAllChanges() {
+    if (!confirm('Bạn có chắc chắn muốn hoàn tác tất cả thay đổi?')) {
+        return;
+    }
+    
+    // Reset all form elements
+    Object.entries(currentChanges).forEach(([recordId, changes]) => {
+        const row = document.querySelector(`tr[data-record-id="${recordId}"]`);
+        
+        // Reset status
+        if (changes.status) {
+            const statusSelect = row.querySelector('.status-select');
+            statusSelect.value = originalData[recordId].status;
+        }
+        
+        // Reset time
+        if (changes.time) {
+            const timeInput = row.querySelector('.time-input');
+            timeInput.value = originalData[recordId].time;
+        }
+        
+        // Reset notes
+        if (changes.notes) {
+            const notesInput = row.querySelector('.notes-input');
+            notesInput.value = originalData[recordId].notes;
+        }
+        
+        // Update row appearance
+        row.classList.remove('table-warning');
+        const indicator = row.querySelector('.change-indicator');
+        if (indicator) indicator.remove();
+    });
+    
+    // Clear changes
+    currentChanges = {};
+    updateChangesSummary();
+    validateChanges();
+    
+    FaceID.NotificationSystem.success('Đã hoàn tác tất cả thay đổi');
+}
+
+function resetRecord(recordId) {
+    if (currentChanges[recordId]) {
+        const row = document.querySelector(`tr[data-record-id="${recordId}"]`);
+        
+        // Reset to original values
+        const statusSelect = row.querySelector('.status-select');
+        const timeInput = row.querySelector('.time-input');
+        const notesInput = row.querySelector('.notes-input');
+        
+        statusSelect.value = originalData[recordId].status;
+        timeInput.value = originalData[recordId].time;
+        notesInput.value = originalData[recordId].notes;
+        
+        // Update time input state
+        updateStatus(recordId, originalData[recordId].status);
+        
+        // Remove from changes
+        delete currentChanges[recordId];
+        
+        // Update appearance
+        row.classList.remove('table-warning');
+        const indicator = row.querySelector('.change-indicator');
+        if (indicator) indicator.remove();
+        
+        updateChangesSummary();
+        validateChanges();
+    }
+}
+
+// Filter and search functions
+function filterByStatus(status) {
+    const rows = document.querySelectorAll('#edit-tbody tr');
+    const noResults = document.getElementById('no-results');
+    let visibleCount = 0;
+    
+    // Update filter buttons
+    document.querySelectorAll('.quick-filters .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    rows.forEach(row => {
+        let shouldShow = false;
+        
+        if (status === 'all') {
+            shouldShow = true;
+        } else if (status === 'changed') {
+            shouldShow = row.classList.contains('table-warning');
+        } else {
+            const statusSelect = row.querySelector('.status-select');
+            shouldShow = statusSelect.value === status;
+        }
+        
+        // Apply search filter if active
+        const searchTerm = document.getElementById('search-student').value.toLowerCase().trim();
+        if (shouldShow && searchTerm) {
+            const studentName = row.dataset.studentName;
+            const studentCode = row.dataset.studentCode;
+            shouldShow = studentName.includes(searchTerm) || studentCode.includes(searchTerm);
+        }
+        
+        row.style.display = shouldShow ? '' : 'none';
+        if (shouldShow) visibleCount++;
+    });
+    
+    noResults.classList.toggle('d-none', visibleCount > 0);
+}
+
+function handleSearch() {
+    const searchTerm = document.getElementById('search-student').value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#edit-tbody tr');
+    const noResults = document.getElementById('no-results');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        let shouldShow = true;
+        
+        if (searchTerm) {
+            const studentName = row.dataset.studentName;
+            const studentCode = row.dataset.studentCode;
+            shouldShow = studentName.includes(searchTerm) || studentCode.includes(searchTerm);
+        }
+        
+        row.style.display = shouldShow ? '' : 'none';
+        if (shouldShow) visibleCount++;
+    });
+    
+    noResults.classList.toggle('d-none', visibleCount > 0);
+}
+
+// Selection functions
+function toggleSelectAll() {
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.record-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        const row = checkbox.closest('tr');
+        if (row.style.display !== 'none') {
+            checkbox.checked = selectAll.checked;
+        }
+    });
+    
+    updateSelectedRecords();
+}
+
+function updateSelectedRecords() {
+    selectedRecords.clear();
+    
+    document.querySelectorAll('.record-checkbox:checked').forEach(checkbox => {
+        selectedRecords.add(checkbox.value);
+    });
+    
+    document.getElementById('selected-count').textContent = selectedRecords.size;
+}
+
+function selectAllVisible() {
+    const visibleCheckboxes = Array.from(document.querySelectorAll('.record-checkbox'))
+        .filter(checkbox => checkbox.closest('tr').style.display !== 'none');
+    
+    visibleCheckboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    
+    updateSelectedRecords();
+}
+
+// Bulk edit functions
+function bulkEdit() {
+    if (selectedRecords.size === 0) {
+        FaceID.NotificationSystem.warning('Vui lòng chọn ít nhất một học sinh');
+        return;
+    }
+    
+    document.getElementById('bulk-student-count').textContent = selectedRecords.size;
+    new bootstrap.Modal(document.getElementById('bulkEditModal')).show();
+}
+
+function applyBulkChanges() {
+    const bulkStatus = document.getElementById('bulk-status').value;
+    const bulkTime = document.getElementById('bulk-time').value;
+    const bulkNotes = document.getElementById('bulk-notes').value;
+    
+    if (!bulkStatus && !bulkTime && !bulkNotes) {
+        FaceID.NotificationSystem.warning('Vui lòng chọn ít nhất một thay đổi');
+        return;
+    }
+    
+    selectedRecords.forEach(recordId => {
+        const row = document.querySelector(`tr[data-record-id="${recordId}"]`);
+        
+        if (bulkStatus) {
+            const statusSelect = row.querySelector('.status-select');
+            statusSelect.value = bulkStatus;
+            updateStatus(recordId, bulkStatus);
+        }
+        
+        if (bulkTime) {
+            const timeInput = row.querySelector('.time-input');
+            timeInput.value = bulkTime;
+            updateTime(recordId, bulkTime);
+        }
+        
+        if (bulkNotes) {
+            const notesInput = row.querySelector('.notes-input');
+            notesInput.value = bulkNotes;
+            updateNotes(recordId, bulkNotes);
+        }
+    });
+    
+    FaceID.NotificationSystem.success(`Đã áp dụng thay đổi cho ${selectedRecords.size} học sinh`);
+    clearBulkForm();
+}
+
+function clearBulkForm() {
+    document.getElementById('bulk-status').value = '';
+    document.getElementById('bulk-time').value = '';
+    document.getElementById('bulk-notes').value = '';
+}
+
+// Quick action functions
+function markAllPresent() {
+    if (!confirm('Bạn có chắc chắn muốn đánh dấu tất cả học sinh có mặt?')) {
+        return;
+    }
+    
+    const rows = document.querySelectorAll('#edit-tbody tr');
+    rows.forEach(row => {
+        if (row.style.display !== 'none') {
+            const recordId = row.dataset.recordId;
+            const statusSelect = row.querySelector('.status-select');
+            statusSelect.value = 'present';
+            updateStatus(recordId, 'present');
+        }
+    });
+    
+    FaceID.NotificationSystem.success('Đã đánh dấu tất cả học sinh có mặt');
+}
+
+function markAllAbsent() {
+    if (!confirm('Bạn có chắc chắn muốn đánh dấu tất cả học sinh vắng?')) {
+        return;
+    }
+    
+    const rows = document.querySelectorAll('#edit-tbody tr');
+    rows.forEach(row => {
+        if (row.style.display !== 'none') {
+            const recordId = row.dataset.recordId;
+            const statusSelect = row.querySelector('.status-select');
+            statusSelect.value = 'absent';
+            updateStatus(recordId, 'absent');
+        }
+    });
+    
+    FaceID.NotificationSystem.success('Đã đánh dấu tất cả học sinh vắng');
+}
+
+function resetToOriginal() {
+    if (!confirm('Bạn có chắc chắn muốn khôi phục về trạng thái ban đầu?')) {
+        return;
+    }
+    
+    undoAllChanges();
+}
+
+// Auto-save function
+async function autoSaveChanges() {
+    try {
+        await FaceID.APIClient.post(`/api/attendance/session/${sessionId}/auto-save`, {
+            changes: currentChanges
+        });
+        
+        console.log('Auto-saved changes');
+    } catch (error) {
+        console.error('Auto-save error:', error);
+    }
+}
+
+// Additional utility functions
+function viewHistory(recordId) {
+    // Load and show change history for this record
+    loadRecordHistory(recordId);
+    new bootstrap.Modal(document.getElementById('historyModal')).show();
+}
+
+async function loadRecordHistory(recordId) {
+    try {
+        const response = await FaceID.APIClient.get(`/api/attendance/record/${recordId}/history`);
+        
+        if (response.success) {
+            const history = response.data.history;
+            document.getElementById('history-content').innerHTML = history.map(item => `
+                <div class="history-item mb-3 p-3 border rounded">
+                    <div class="d-flex justify-content-between">
+                        <strong>${item.change_type}</strong>
+                        <small class="text-muted">${FaceID.Utils.formatDateTime(item.timestamp)}</small>
+                    </div>
+                    <div class="mt-2">
+                        <div>Từ: ${item.old_value || 'Không có'}</div>
+                        <div>Thành: ${item.new_value || 'Không có'}</div>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">Bởi: ${item.user_name}</small>
+                        ${item.reason ? `<br><small class="text-muted">Lý do: ${item.reason}</small>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading history:', error);
+        document.getElementById('history-content').innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
+                <p>Không thể tải lịch sử thay đổi</p>
+            </div>
+        `;
+    }
+}
+
+function saveAndContinue() {
+    saveAllChanges().then(() => {
+        window.location.href = '/attendance/camera';
+    });
+}
+
+function previewChanges() {
+    if (Object.keys(currentChanges).length === 0) {
+        FaceID.NotificationSystem.info('Không có thay đổi nào để xem trước');
+        return;
+    }
+    
+    FaceID.NotificationSystem.info('Tính năng xem trước sẽ được triển khai sau');
+}
+
+function exportChanges() {
+    if (Object.keys(currentChanges).length === 0) {
+        FaceID.NotificationSystem.info('Không có thay đổi nào để xuất');
+        return;
+    }
+    
+    FaceID.NotificationSystem.info('Tính năng xuất thay đổi sẽ được triển khai sau');
+}
+
+function loadTemplate() {
+    FaceID.NotificationSystem.info('Tính năng tải mẫu sẽ được triển khai sau');
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+</script>
+{% endblock %}

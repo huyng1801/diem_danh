@@ -1,0 +1,1153 @@
+{% extends "layout.html" %}
+
+{% block title %}Quản lý ảnh học sinh - {{ student.full_name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+    <a href="{{ url_for('admin.dashboard') }}" class="text-decoration-none">
+        <i class="fas fa-home me-1"></i>Trang chủ
+    </a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{{ url_for('student.list') }}" class="text-decoration-none">
+        Quản lý học sinh
+    </a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">
+    Quản lý ảnh - {{ student.full_name }}
+</li>
+{% endblock %}
+
+{% block layout_content %}
+<style>
+    /* Card improvements */
+    .card {
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card-header {
+        border-radius: 8px 8px 0 0;
+        border: none;
+        padding: 1.25rem;
+    }
+    
+    .card-header-primary {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .card-header-info {
+        background-color: #17a2b8;
+        color: white;
+    }
+    
+    .card-header-warning {
+        background-color: #ffc107;
+        color: #333;
+    }
+    
+    /* Image gallery */
+    .image-card {
+        position: relative;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid #e0e0e0;
+    }
+    
+    .image-card .card-img-top {
+        height: 200px;
+        object-fit: cover;
+    }
+    
+    .image-checkbox {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+    
+    .image-action-btn {
+        font-size: 0.85rem;
+    }
+    
+    /* Camera container */
+    .camera-container {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .camera-container video,
+    .camera-container #camera-placeholder {
+        border-radius: 8px;
+    }
+    
+    /* Drop zone */
+    #drop-zone {
+        border-radius: 8px;
+        transition: border-color 0.2s ease;
+        background-color: #f8f9fa;
+        border: 2px dashed #dee2e6;
+    }
+    
+    #drop-zone.border-primary {
+        background-color: #f0f6ff;
+        border-color: #007bff;
+    }
+    
+    /* Progress bar styling */
+    .progress {
+        height: 6px;
+        border-radius: 6px;
+        background-color: #e9ecef;
+    }
+    
+    .progress-bar {
+        background-color: #007bff;
+    }
+    
+    /* Button styling */
+    .btn-custom-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+        color: white;
+    }
+    
+    .btn-custom-primary:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+        color: white;
+    }
+    
+    .btn-custom-warning {
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #333;
+    }
+    
+    .btn-custom-warning:hover {
+        background-color: #e0a800;
+        border-color: #e0a800;
+        color: #333;
+    }
+    
+    /* Header info styling */
+    .info-badge {
+        font-size: 1rem;
+        padding: 0.6rem 1.2rem;
+        border-radius: 20px;
+        font-weight: 500;
+        display: inline-block;
+    }
+    
+    .info-badge.badge-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .info-badge.badge-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    /* Alert styling */
+    .alert-custom {
+        border-radius: 6px;
+        border: none;
+        padding: 0.9rem 1.1rem;
+    }
+    
+    .alert-info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border-left: 4px solid #17a2b8;
+    }
+    
+    .alert-warning {
+        background-color: #fff3cd;
+        color: #856404;
+        border-left: 4px solid #ffc107;
+    }
+    
+    /* Modal improvements */
+    .modal-header {
+        border: none;
+        border-radius: 8px 8px 0 0;
+        padding: 1.25rem;
+    }
+    
+    .modal-content {
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Badge improvements */
+    .badge {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+        border-radius: 4px;
+    }
+    
+    /* Empty state */
+    #empty-gallery {
+        padding: 3rem 2rem;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    /* Back button */
+    .btn-back {
+        transition: color 0.2s ease;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .card {
+            margin-bottom: 1rem;
+        }
+        
+        .image-card {
+            margin-bottom: 1rem;
+        }
+        
+        .info-badge {
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+        }
+    }
+</style>
+
+<div class="container-fluid mt-4">
+    <!-- Student Info Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0">
+                <div class="card-body p-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h4 class="mb-2" style="color: #2c3e50;">
+                                <i class="fas fa-user-circle text-primary me-2"></i>
+                                {{ student.full_name }}
+                            </h4>
+                            <div class="text-muted" style="font-size: 1rem;">
+                                <i class="fas fa-id-card me-1"></i><strong>{{ student.student_code }}</strong>
+                                {% if student.classroom %}
+                                <span class="mx-2">|</span>
+                                <i class="fas fa-door-open me-1"></i><strong>{{ student.classroom.class_name }}</strong>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <div class="info-badge badge-{{ 'success' if student.face_recognition_enabled else 'warning' }}">
+                                <i class="fas fa-{{ 'check-circle' if student.face_recognition_enabled else 'exclamation-circle' }} me-1"></i>
+                                {{ 'Nhận diện kích hoạt' if student.face_recognition_enabled else 'Chưa kích hoạt' }}
+                            </div>
+                            <div class="mt-2 text-muted">
+                                <small><i class="fas fa-images me-1"></i><strong id="images-count">{{ face_images_count }}</strong> ảnh đã lưu</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Upload Section -->
+        <div class="col-12 mb-4">
+            <div class="card border-0">
+                <div class="card-header card-header-primary">
+                    <h6 class="mb-0" style="font-size: 1.1rem; font-weight: 600;">
+                        <i class="fas fa-camera me-2"></i>
+                        Tải lên ảnh khuôn mặt
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <!-- Camera Capture -->
+                        <div class="col-lg-6 mb-3">
+                            <div class="text-center">
+                                <h6 class="text-primary mb-3" style="font-weight: 600;">
+                                    <i class="fas fa-video me-1"></i>
+                                    Chụp ảnh từ camera
+                                </h6>
+                                
+                                <!-- Camera Container -->
+                                <div class="camera-container position-relative mb-3" style="max-width: 400px; margin: 0 auto;">
+                                    <video id="camera" class="w-100 rounded d-none" autoplay muted playsinline></video>
+                                    <canvas id="canvas" class="d-none"></canvas>
+                                    
+                                    <!-- Camera placeholder -->
+                                    <div id="camera-placeholder" class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 300px;">
+                                        <div class="text-center text-muted">
+                                            <i class="fas fa-camera fa-3x mb-2"></i>
+                                            <div>Camera chưa được kích hoạt</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Camera overlay for face detection -->
+                                    <div id="face-overlay" class="position-absolute top-0 start-0 w-100 h-100 d-none">
+                                        <div id="face-box" class="position-absolute border border-success" style="border-width: 2px !important; display: none;"></div>
+                                        <div class="position-absolute top-0 start-0 p-2">
+                                            <small class="badge bg-success" id="face-status">Phát hiện khuôn mặt</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Camera Controls -->
+                                <div class="d-flex justify-content-center gap-2 mb-3">
+                                    <button type="button" class="btn btn-sm btn-custom-primary" id="start-camera">
+                                        <i class="fas fa-play me-1"></i>
+                                        Bật camera
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="stop-camera" disabled>
+                                        <i class="fas fa-stop me-1"></i>
+                                        Tắt camera
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-success" id="capture-photo" disabled>
+                                        <i class="fas fa-camera me-1"></i>
+                                        Chụp ảnh
+                                    </button>
+                                </div>
+                                
+                                <!-- Capture Instructions -->
+                                <div class="alert alert-info alert-custom" style="font-size: 0.95rem;">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    <strong>Hướng dẫn:</strong> Đặt khuôn mặt trong khung hình, nhìn thẳng vào camera và bấm "Chụp ảnh".
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- File Upload -->
+                        <div class="col-lg-6 mb-3">
+                            <div class="text-center">
+                                <h6 class="text-primary mb-3" style="font-weight: 600;">
+                                    <i class="fas fa-upload me-1"></i>
+                                    Tải lên từ máy tính
+                                </h6>
+                                
+                                <!-- File Drop Zone -->
+                                <div id="drop-zone" class="border-2 border-dashed p-4 mb-3" style="min-height: 200px;">
+                                    <div class="d-flex flex-column align-items-center justify-content-center h-100">
+                                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                        <p class="mb-2">Kéo thả ảnh vào đây hoặc</p>
+                                        <button type="button" class="btn btn-sm btn-custom-primary" onclick="document.getElementById('file-input').click()">
+                                            <i class="fas fa-folder-open me-1"></i>
+                                            Chọn file
+                                        </button>
+                                        <input type="file" id="file-input" accept="image/*" multiple class="d-none">
+                                        <small class="text-muted mt-2">
+                                            <i class="fas fa-check me-1"></i>JPG, PNG, JPEG (Tối đa 5MB)
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <!-- Upload Progress -->
+                                <div id="upload-progress" class="d-none">
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted">Đang tải lên...</small>
+                                </div>
+                                
+                                <!-- Upload Instructions -->
+                                <div class="alert alert-warning alert-custom" style="font-size: 0.95rem;">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    <strong>Lưu ý:</strong> Cần 3-5 ảnh chất lượng cao, một khuôn mặt, rõ nét và đủ ánh sáng.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Image Gallery -->
+        <div class="col-12">
+            <div class="card border-0">
+                <div class="card-header card-header-info">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0" style="font-size: 1.1rem; font-weight: 600;">
+                            <i class="fas fa-images me-2"></i>
+                            Thư viện ảnh (<span id="image-count">{{ face_images_count }}</span>)
+                        </h6>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" id="delete-selected" disabled>
+                                <i class="fas fa-trash me-1"></i>
+                                Xóa đã chọn
+                            </button>
+                            <button type="button" class="btn btn-sm btn-custom-warning" id="retrain-model">
+                                <i class="fas fa-brain me-1"></i>
+                                Huấn luyện lại
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Empty state -->
+                    <div class="text-center py-5" id="empty-gallery" style="display: {{ 'none' if face_images_count > 0 else 'block' }};">
+                        <i class="fas fa-image fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Chưa có ảnh nào</h5>
+                        <p class="text-muted">Hãy tải lên ảnh khuôn mặt để kích hoạt tính năng nhận diện</p>
+                    </div>
+                    
+                    <!-- Image gallery grid -->
+                    <div class="row" id="image-gallery">
+                        <!-- Images will be loaded by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{{ url_for('student.list') }}" class="btn btn-back btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>
+                Quay lại danh sách
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="delete-image-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-trash me-1"></i>
+                    Xác nhận xóa ảnh
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn có chắc chắn muốn xóa ảnh này không?</p>
+                <p class="text-muted" id="delete-image-name"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>
+                    Hủy
+                </button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-image">
+                    <i class="fas fa-trash me-1"></i>
+                    Xóa ảnh
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Multiple Images Confirmation Modal -->
+<div class="modal fade" id="delete-multiple-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-trash-alt me-1"></i>
+                    Xác nhận xóa các ảnh đã chọn
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn có chắc chắn muốn xóa <strong id="delete-multiple-count">0</strong> ảnh được chọn không?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>
+                    Hủy
+                </button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-multiple">
+                    <i class="fas fa-trash me-1"></i>
+                    Xóa
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Retrain Model Confirmation Modal -->
+<div class="modal fade" id="retrain-model-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-brain me-1"></i>
+                    Xác nhận huấn luyện lại mô hình
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn có chắc chắn muốn huấn luyện lại mô hình nhận diện?</p>
+                <p class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Quá trình này có thể mất vài phút. Vui lòng đợi cho đến khi hoàn thành.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>
+                    Hủy
+                </button>
+                <button type="button" class="btn btn-warning" id="confirm-retrain-model">
+                    <i class="fas fa-spinner fa-spin me-1"></i>
+                    <span id="retrain-button-text">Huấn luyện</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const studentId = {{ student.id }};
+    let selectedImages = new Set();
+    let currentCamera = null;
+    let faceDetection = null;
+    let imageToDelete = null; // Store image ID for delete confirmation
+
+    // Initialize page
+    function initializePage() {
+        console.log('Initializing image upload page for student:', studentId);
+        
+        // Verify required elements exist
+        const requiredElements = [
+            'image-gallery',
+            'empty-gallery',
+            'upload-progress',
+            'drop-zone',
+            'file-input',
+            'start-camera',
+            'stop-camera',
+            'capture-photo'
+        ];
+        
+        const missingElements = requiredElements.filter(id => !document.getElementById(id));
+        if (missingElements.length > 0) {
+            console.error('Missing required elements:', missingElements);
+            window.FaceID?.NotificationSystem?.error('Lỗi: Một số thành phần giao diện không tồn tại');
+            return;
+        }
+        
+        loadImageGallery();
+        setupFileUpload();
+        setupCameraControls();
+        setupEventListeners();
+        
+        // Initialize face detection if available
+        if (typeof cv !== 'undefined') {
+            initializeFaceDetection();
+        }
+        
+        console.log('Image upload page initialized successfully');
+    }
+
+    // Load image gallery
+    async function loadImageGallery() {
+        try {
+            console.log('Loading image gallery for student:', studentId);
+            const response = await fetch(`/student/api/${studentId}/images`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('Gallery data received:', data.data?.count || 0, 'images');
+            
+            if (data.success) {
+                renderImageGallery(data.data.images);
+                updateImageCount(data.data.count);
+            } else {
+                console.error('Failed to load images:', data.message);
+                window.FaceID?.NotificationSystem?.error(data.message || 'Lỗi khi tải danh sách ảnh');
+            }
+        } catch (error) {
+            console.error('Error loading images:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi tải danh sách ảnh');
+        }
+    }
+
+    // Render image gallery
+    function renderImageGallery(images) {
+        const gallery = document.getElementById('image-gallery');
+        const emptyGallery = document.getElementById('empty-gallery');
+        
+        if (!gallery) {
+            console.error('Gallery element (#image-gallery) not found in DOM');
+            return;
+        }
+        
+        if (!emptyGallery) {
+            console.error('Empty gallery element (#empty-gallery) not found in DOM');
+            return;
+        }
+        
+        if (!images || images.length === 0) {
+            gallery.innerHTML = '';
+            emptyGallery.style.display = 'block';
+            console.log('No images to display');
+            return;
+        }
+        
+        emptyGallery.style.display = 'none';
+        
+        gallery.innerHTML = images.map((image, index) => {
+            // Ensure image_path is properly formatted
+            const imagePath = image.image_path || image.image_url || '';
+            const imageId = image.id || index;
+            const filename = image.filename || `image_${imageId}.jpg`;
+            const createdAt = image.created_at || new Date().toISOString();
+            const quality = image.quality || 'unknown';
+            
+            return `
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                    <div class="position-relative">
+                        <div class="card image-card h-100">
+                            <div class="position-absolute top-0 start-0 p-2" style="z-index: 10;">
+                                <input type="checkbox" 
+                                       class="form-check-input image-select image-checkbox" 
+                                       value="${imageId}" 
+                                       onchange="toggleImageSelection(this)"
+                                       title="Chọn ảnh để xóa">
+                            </div>
+                            <div class="position-absolute top-0 end-0 p-2" style="z-index: 10;">
+                                <button type="button" 
+                                        class="btn btn-sm btn-danger image-action-btn"
+                                        onclick="showDeleteConfirm(${imageId}, '${filename}')"
+                                        title="Xóa ảnh này">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                            <img src="${imagePath}" 
+                                 class="card-img-top" 
+                                 style="height: 200px; object-fit: cover;"
+                                 onerror="this.src='/static/images/no-image.png'; this.onerror=null;"
+                                 alt="Ảnh khuôn mặt ${imageId}"
+                                 loading="lazy">
+                            <div class="card-body p-2">
+                                <small class="text-muted d-block mb-1">
+                                    <i class="fas fa-clock me-1"></i>
+                                    ${formatDate(createdAt)}
+                                </small>
+                                <small class="badge bg-${quality === 'good' ? 'success' : quality === 'medium' ? 'warning' : 'secondary'}">
+                                    ${quality === 'good' ? 'Chất lượng tốt' : quality === 'medium' ? 'Chất lượng TB' : 'Chưa đánh giá'}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        console.log(`Rendered ${images.length} images in gallery`);
+    }
+
+    // Update image count
+    function updateImageCount(count) {
+        document.getElementById('image-count').textContent = count;
+    }
+
+    // Toggle image selection
+    window.toggleImageSelection = function(checkbox) {
+        if (checkbox.checked) {
+            selectedImages.add(checkbox.value);
+        } else {
+            selectedImages.delete(checkbox.value);
+        }
+        
+        document.getElementById('delete-selected').disabled = selectedImages.size === 0;
+    };
+
+    // Show delete confirmation modal
+    window.showDeleteConfirm = function(imageId, filename) {
+        imageToDelete = imageId;
+        document.getElementById('delete-image-name').textContent = `Ảnh: ${filename}`;
+        const modal = new bootstrap.Modal(document.getElementById('delete-image-modal'));
+        modal.show();
+    };
+
+    // Delete single image
+    window.deleteImage = async function(imageId) {
+        if (!imageId) {
+            console.error('No image ID provided');
+            window.FaceID?.NotificationSystem?.error('Lỗi: không tìm thấy ID ảnh');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/student/api/${studentId}/delete-image/${imageId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                window.FaceID?.NotificationSystem?.success('Đã xóa ảnh thành công');
+                loadImageGallery();
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('delete-image-modal'));
+                if (modal) {
+                    modal.hide();
+                }
+            } else {
+                window.FaceID?.NotificationSystem?.error(result.message || 'Lỗi khi xóa ảnh');
+            }
+
+        } catch (error) {
+            console.error('Delete error:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi xóa ảnh');
+        }
+    };
+
+    // Delete multiple images
+    window.deleteMultipleImages = async function(imageIds) {
+        if (!imageIds || imageIds.length === 0) {
+            console.error('No image IDs provided');
+            window.FaceID?.NotificationSystem?.error('Vui lòng chọn ảnh để xóa');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/student/api/${studentId}/delete-images`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ image_ids: Array.from(imageIds) })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                window.FaceID?.NotificationSystem?.success(`Đã xóa ${result.deleted_count || imageIds.length} ảnh thành công`);
+                selectedImages.clear();
+                document.getElementById('delete-selected').disabled = true;
+                loadImageGallery();
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('delete-multiple-modal'));
+                if (modal) {
+                    modal.hide();
+                }
+            } else {
+                window.FaceID?.NotificationSystem?.error(result.message || 'Lỗi khi xóa ảnh');
+            }
+
+        } catch (error) {
+            console.error('Delete multiple error:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi xóa ảnh');
+        }
+    };
+
+    // Format date
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('vi-VN') + ' ' + date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Setup file upload
+    function setupFileUpload() {
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        
+        // Drag and drop
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('dragleave', handleDragLeave);
+        dropZone.addEventListener('drop', handleFileDrop);
+        
+        // File input change
+        fileInput.addEventListener('change', handleFileSelect);
+    }
+
+    // Handle drag over
+    function handleDragOver(event) {
+        event.preventDefault();
+        event.currentTarget.classList.add('border-primary');
+    }
+
+    // Handle drag leave
+    function handleDragLeave(event) {
+        event.currentTarget.classList.remove('border-primary');
+    }
+
+    // Handle file drop
+    function handleFileDrop(event) {
+        event.preventDefault();
+        event.currentTarget.classList.remove('border-primary');
+        
+        const files = Array.from(event.dataTransfer.files);
+        uploadFiles(files);
+    }
+
+    // Handle file select
+    function handleFileSelect(event) {
+        const files = Array.from(event.target.files);
+        uploadFiles(files);
+        
+        // Reset file input
+        event.target.value = '';
+    }
+
+    // Upload files
+    async function uploadFiles(files) {
+        const validFiles = files.filter(file => {
+            const isValidType = file.type.startsWith('image/');
+            const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB
+            
+            if (!isValidType) {
+                window.FaceID?.NotificationSystem?.error(`File ${file.name} không phải là ảnh`);
+                return false;
+            }
+            
+            if (!isValidSize) {
+                window.FaceID?.NotificationSystem?.error(`File ${file.name} quá lớn (tối đa 5MB)`);
+                return false;
+            }
+            
+            return true;
+        });
+        
+        if (validFiles.length === 0) return;
+        
+        const progressContainer = document.getElementById('upload-progress');
+        const progressBar = progressContainer.querySelector('.progress-bar');
+        
+        progressContainer.classList.remove('d-none');
+        
+        let successCount = 0;
+        let failCount = 0;
+        
+        try {
+            for (let i = 0; i < validFiles.length; i++) {
+                const file = validFiles[i];
+                const formData = new FormData();
+                formData.append('image', file);
+                
+                // Update progress
+                const progress = ((i + 1) / validFiles.length) * 100;
+                progressBar.style.width = `${progress}%`;
+                progressBar.textContent = `${i + 1}/${validFiles.length}`;
+                
+                try {
+                    const response = await fetch(`/student/api/${studentId}/upload-image`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        successCount++;
+                        console.log(`Successfully uploaded: ${file.name}`);
+                    } else {
+                        failCount++;
+                        console.error(`Failed to upload ${file.name}:`, result.message);
+                        window.FaceID?.NotificationSystem?.error(result.message || `Lỗi tải lên ${file.name}`);
+                    }
+                } catch (uploadError) {
+                    failCount++;
+                    console.error(`Error uploading ${file.name}:`, uploadError);
+                    window.FaceID?.NotificationSystem?.error(`Lỗi kết nối khi tải ${file.name}`);
+                }
+            }
+            
+            // Show summary notification
+            if (successCount > 0) {
+                window.FaceID?.NotificationSystem?.success(
+                    `Tải lên thành công ${successCount}/${validFiles.length} ảnh`
+                );
+                // Reload gallery to show new images
+                await loadImageGallery();
+            }
+            
+            if (failCount > 0 && successCount === 0) {
+                window.FaceID?.NotificationSystem?.error(
+                    `Tất cả ${failCount} ảnh tải lên thất bại`
+                );
+            }
+            
+        } catch (error) {
+            console.error('Error in upload process:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi tải lên ảnh');
+        } finally {
+            // Hide progress bar after a short delay
+            setTimeout(() => {
+                progressContainer.classList.add('d-none');
+                progressBar.style.width = '0%';
+                progressBar.textContent = '';
+            }, 1000);
+        }
+    }
+
+    // Setup camera controls
+    function setupCameraControls() {
+        document.getElementById('start-camera').addEventListener('click', startCamera);
+        document.getElementById('stop-camera').addEventListener('click', stopCamera);
+        document.getElementById('capture-photo').addEventListener('click', capturePhoto);
+    }
+
+    // Start camera
+    async function startCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    facingMode: 'user'
+                }
+            });
+            
+            const video = document.getElementById('camera');
+            const placeholder = document.getElementById('camera-placeholder');
+            
+            video.srcObject = stream;
+            video.classList.remove('d-none');
+            placeholder.classList.add('d-none');
+            
+            currentCamera = stream;
+            
+            // Update button states
+            document.getElementById('start-camera').disabled = true;
+            document.getElementById('stop-camera').disabled = false;
+            document.getElementById('capture-photo').disabled = false;
+            
+            // Start face detection if available
+            if (faceDetection) {
+                startFaceDetection();
+            }
+            
+        } catch (error) {
+            console.error('Camera error:', error);
+            window.FaceID?.NotificationSystem?.error('Không thể truy cập camera');
+        }
+    }
+
+    // Stop camera
+    function stopCamera() {
+        if (currentCamera) {
+            currentCamera.getTracks().forEach(track => track.stop());
+            currentCamera = null;
+        }
+        
+        const video = document.getElementById('camera');
+        const placeholder = document.getElementById('camera-placeholder');
+        const overlay = document.getElementById('face-overlay');
+        
+        video.classList.add('d-none');
+        placeholder.classList.remove('d-none');
+        overlay.classList.add('d-none');
+        
+        // Update button states
+        document.getElementById('start-camera').disabled = false;
+        document.getElementById('stop-camera').disabled = true;
+        document.getElementById('capture-photo').disabled = true;
+    }
+
+    // Capture photo
+    async function capturePhoto() {
+        const video = document.getElementById('camera');
+        const canvas = document.getElementById('canvas');
+        
+        if (!video || !canvas) {
+            console.error('Video or canvas element not found');
+            window.FaceID?.NotificationSystem?.error('Lỗi: Không tìm thấy camera element');
+            return;
+        }
+        
+        if (!video.videoWidth || !video.videoHeight) {
+            console.error('Video not ready');
+            window.FaceID?.NotificationSystem?.error('Camera chưa sẵn sàng, vui lòng thử lại');
+            return;
+        }
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size to video size
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw current frame to canvas
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Convert to blob with high quality
+        canvas.toBlob(async (blob) => {
+            if (blob) {
+                await uploadCapturedPhoto(blob);
+            } else {
+                console.error('Failed to create blob from canvas');
+                window.FaceID?.NotificationSystem?.error('Lỗi khi xử lý ảnh');
+            }
+        }, 'image/jpeg', 0.95); // High quality JPEG
+    }
+
+    // Upload captured photo
+    async function uploadCapturedPhoto(blob) {
+        const formData = new FormData();
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `camera_${timestamp}.jpg`;
+        formData.append('image', blob, filename);
+        
+        try {
+            const response = await fetch(`/student/api/${studentId}/upload-image`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                window.FaceID?.NotificationSystem?.success('Đã chụp và lưu ảnh thành công');
+                await loadImageGallery();
+            } else {
+                console.error('Upload failed:', result.message);
+                window.FaceID?.NotificationSystem?.error(result.message || 'Lỗi khi lưu ảnh');
+            }
+        } catch (error) {
+            console.error('Error uploading captured photo:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi tải lên ảnh');
+        }
+    }
+
+    // Initialize face detection (if OpenCV is available)
+    function initializeFaceDetection() {
+        // This would be implemented with OpenCV.js for real-time face detection
+        // For now, we'll just show a placeholder
+        console.log('Face detection initialized');
+    }
+
+    // Start face detection
+    function startFaceDetection() {
+        const overlay = document.getElementById('face-overlay');
+        overlay.classList.remove('d-none');
+        
+        // This would implement real face detection
+        // For now, just show the overlay
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+        // Delete selected images button
+        document.getElementById('delete-selected').addEventListener('click', function() {
+            if (selectedImages.size === 0) return;
+            
+            const modal = new bootstrap.Modal(document.getElementById('delete-multiple-modal'));
+            document.getElementById('delete-multiple-count').textContent = selectedImages.size;
+            modal.show();
+        });
+        
+        // Delete image modal confirm button
+        document.getElementById('confirm-delete-image').addEventListener('click', function() {
+            if (imageToDelete) {
+                window.deleteImage(imageToDelete);
+            }
+        });
+        
+        // Delete multiple modal confirm button
+        document.getElementById('confirm-delete-multiple').addEventListener('click', function() {
+            if (selectedImages.size > 0) {
+                window.deleteMultipleImages(selectedImages);
+            }
+        });
+        
+        // Retrain model button - show modal
+        document.getElementById('retrain-model').addEventListener('click', function() {
+            const modal = new bootstrap.Modal(document.getElementById('retrain-model-modal'));
+            modal.show();
+        });
+        
+        // Retrain model modal confirm button
+        document.getElementById('confirm-retrain-model').addEventListener('click', function() {
+            retrainModel();
+        });
+    }
+
+    // Retrain model
+    async function retrainModel() {
+        const button = document.getElementById('confirm-retrain-model');
+        const buttonText = document.getElementById('retrain-button-text');
+        const originalText = buttonText.textContent;
+        
+        button.disabled = true;
+        buttonText.textContent = 'Đang huấn luyện...';
+        
+        try {
+            console.log(`Starting model retrain for student ${studentId}`);
+            
+            // Create AbortController for timeout (2 minutes)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes
+            
+            const response = await fetch(`/student/api/${studentId}/retrain`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            console.log('Retrain response:', result);
+            
+            if (result.success) {
+                const message = result.data && result.data.trained_count 
+                    ? `Đã huấn luyện thành công ${result.data.trained_count} học sinh với ${result.data.total_encodings} encodings`
+                    : 'Đã huấn luyện lại mô hình thành công';
+                window.FaceID?.NotificationSystem?.success(message);
+                loadImageGallery();
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('retrain-model-modal'));
+                if (modal) {
+                    modal.hide();
+                }
+            } else {
+                window.FaceID?.NotificationSystem?.error(result.message || 'Lỗi khi huấn luyện mô hình');
+            }
+            
+        } catch (error) {
+            console.error('Retrain error:', error);
+            if (error.name === 'AbortError') {
+                window.FaceID?.NotificationSystem?.error('Quá trình huấn luyện mất quá nhiều thời gian. Vui lòng thử lại sau.');
+            } else if (error.message.includes('Failed to fetch')) {
+                window.FaceID?.NotificationSystem?.error('Kết nối bị gián đoạn. Vui lòng kiểm tra server và thử lại.');
+            } else {
+                window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi huấn luyện mô hình');
+            }
+        } finally {
+            button.disabled = false;
+            buttonText.textContent = originalText;
+        }
+    }
+
+    // Initialize page on load
+    initializePage();
+    
+    // Cleanup when page unloads
+    window.addEventListener('beforeunload', function() {
+        if (currentCamera) {
+            stopCamera();
+        }
+    });
+});
+</script>
+{% endblock %}

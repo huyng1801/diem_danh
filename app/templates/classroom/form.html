@@ -1,0 +1,480 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ 'Chỉnh sửa' if class_data else 'Thêm' }} lớp học{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+    <a href="{{ url_for('admin.dashboard') }}" class="text-decoration-none">
+        <i class="fas fa-home me-1"></i>Trang chủ
+    </a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{{ url_for('classroom.list') }}" class="text-decoration-none">
+        Quản lý lớp học
+    </a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">
+    {{ 'Chỉnh sửa' if class_data else 'Thêm mới' }}
+</li>
+{% endblock %}
+
+{% block layout_content %}
+<div class="container-fluid mt-4">
+    <div class="row justify-content-center">
+        <div class="col-12" style="max-width:100%;">
+
+            <!-- Classroom Form -->
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form id="classroomForm" method="POST">
+                        <input type="hidden" id="classroomId" name="id" value="{{ class_data.id if class_data else '' }}">
+                        
+                        <!-- Basic Information -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-school text-primary me-2"></i>
+                                Thông tin cơ bản
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="class_name" class="form-label">
+                                            Tên lớp <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="class_name" 
+                                               name="class_name" 
+                                               value="{{ class_data.class_name if class_data else '' }}"
+                                               placeholder="Ví dụ: 6A1, 7B2, 8C3...">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="grade" class="form-label">
+                                            Khối lớp <span class="text-danger">*</span>
+                                        </label>
+                                        <select class="form-select" id="grade" name="grade">
+                                            <option value="">Chọn khối lớp</option>
+                                            <option value="6" {{ 'selected' if class_data and class_data.grade == '6' else '' }}>Khối 6</option>
+                                            <option value="7" {{ 'selected' if class_data and class_data.grade == '7' else '' }}>Khối 7</option>
+                                            <option value="8" {{ 'selected' if class_data and class_data.grade == '8' else '' }}>Khối 8</option>
+                                            <option value="9" {{ 'selected' if class_data and class_data.grade == '9' else '' }}>Khối 9</option>
+                                        </select>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="room_number" class="form-label">
+                                            Phòng học
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="room_number" 
+                                               name="room_number"
+                                               value="{{ class_data.room_number if class_data else '' }}"
+                                               placeholder="Ví dụ: A101, B205, C303...">
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="max_student" class="form-label">
+                                            Sĩ số tối đa <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               id="max_student" 
+                                               name="max_student"
+                                               value="{{ class_data.max_student if class_data else '45' }}"
+                                               min="1" 
+                                               max="60"
+                                               placeholder="45">
+                                        <div class="invalid-feedback"></div>
+                                        <div class="form-text">Số học sinh tối đa trong lớp (1-60)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="academic_year_id" class="form-label">
+                                            Năm học <span class="text-danger">*</span>
+                                        </label>
+                                        <select class="form-select" id="academic_year_id" name="academic_year_id">
+                                            <option value="">Chọn năm học</option>
+                                            <!-- Options will be loaded by JavaScript -->
+                                        </select>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="is_active" class="form-label">
+                                            Trạng thái
+                                        </label>
+                                        <select class="form-select" id="is_active" name="is_active">
+                                            <option value="true" {{ 'selected' if not class_data or class_data.is_active else '' }}>Hoạt động</option>
+                                            <option value="false" {{ 'selected' if class_data and not class_data.is_active else '' }}>Tạm khóa</option>
+                                        </select>
+                                        <div class="invalid-feedback"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Teacher Information -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-user-tie text-primary me-2"></i>
+                                Thông tin giáo viên chủ nhiệm
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="head_teacher_id" class="form-label">
+                                            Giáo viên chủ nhiệm <span class="text-danger">*</span>
+                                        </label>
+                                        <select class="form-select" id="head_teacher_id" name="head_teacher_id">
+                                            <option value="">Chọn giáo viên</option>
+                                            <!-- Options will be loaded by JavaScript -->
+                                        </select>
+                                        <div class="invalid-feedback"></div>
+                                        <div class="form-text">Chọn từ danh sách giáo viên có trong hệ thống</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="head_teacher" class="form-label">
+                                            Hoặc nhập tên giáo viên
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="head_teacher" 
+                                               name="head_teacher"
+                                               value="{{ class_data.head_teacher if class_data else '' }}"
+                                               placeholder="Nhập tên giáo viên chủ nhiệm">
+                                        <div class="invalid-feedback"></div>
+                                        <div class="form-text">Nếu giáo viên chưa có tài khoản trong hệ thống</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                            <a href="{{ url_for('classroom.list') }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i>
+                                Hủy bỏ
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-save me-1"></i>
+                                {{ 'Cập nhật' if class_data else 'Tạo mới' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const isEdit = document.getElementById('classroomId').value !== '';
+    let originalData = {};
+
+    // Initialize form
+    function initializeForm() {
+        loadAcademicYears();
+        loadTeachers();
+        setupFormValidation();
+        setupEventListeners();
+        
+        if (isEdit) {
+            storeOriginalData();
+        }
+    }
+
+    // Store original data for comparison
+    function storeOriginalData() {
+        const form = document.getElementById('classroomForm');
+        const formData = new FormData(form);
+        for (let [key, value] of formData.entries()) {
+            originalData[key] = value;
+        }
+    }
+
+    // Load academic years
+    async function loadAcademicYears() {
+        try {
+            const response = await fetch('/classroom/api/academic_years');
+            const data = await response.json();
+            
+            if (data.success) {
+                const select = document.getElementById('academic_year_id');
+                select.innerHTML = '<option value="">Chọn năm học</option>';
+                
+                data.data.forEach(year => {
+                    const option = document.createElement('option');
+                    option.value = year.id;
+                    option.textContent = year.name;
+                    
+                    // Select current academic year if editing
+                    {% if class_data %}
+                    if (year.id === {{ class_data.academic_year_id if class_data.academic_year_id else 'null' }}) {
+                        option.selected = true;
+                    }
+                    {% else %}
+                    // Select current active year for new classroom
+                    if (year.is_current) {
+                        option.selected = true;
+                    }
+                    {% endif %}
+                    
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading academic years:', error);
+        }
+    }
+
+    // Load teachers
+    async function loadTeachers() {
+        try {
+            const response = await fetch('/classroom/api/teachers');
+            const data = await response.json();
+            
+            if (data.success) {
+                const select = document.getElementById('head_teacher_id');
+                select.innerHTML = '<option value="">Chọn giáo viên</option>';
+                
+                data.data.forEach(teacher => {
+                    const option = document.createElement('option');
+                    option.value = teacher.id;
+                    option.textContent = teacher.full_name;
+                    
+                    // Select current teacher if editing
+                    {% if class_data %}
+                    if (teacher.id === {{ class_data.head_teacher_id if class_data.head_teacher_id else 'null' }}) {
+                        option.selected = true;
+                    }
+                    {% endif %}
+                    
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading teachers:', error);
+        }
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+        // Form submission
+        document.getElementById('classroomForm').addEventListener('submit', handleFormSubmit);
+        
+        // Auto-update head_teacher when selecting from dropdown
+        document.getElementById('head_teacher_id').addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value) {
+                document.getElementById('head_teacher').value = selectedOption.text;
+            }
+        });
+        
+        // Clear dropdown when typing manually in head_teacher
+        document.getElementById('head_teacher').addEventListener('input', function() {
+            if (this.value) {
+                document.getElementById('head_teacher_id').value = '';
+            }
+        });
+    }
+
+    // Setup form validation
+    function setupFormValidation() {
+        const form = document.getElementById('classroomForm');
+        const inputs = form.querySelectorAll('input[required], select[required]');
+        
+        inputs.forEach(input => {
+            input.addEventListener('blur', validateField);
+            input.addEventListener('input', clearFieldError);
+        });
+    }
+
+    // Validate individual field
+    function validateField(event) {
+        const field = event.target;
+        const value = field.value.trim();
+        
+        clearFieldError(event);
+        
+        switch (field.id) {
+            case 'class_name':
+                if (!value) {
+                    showFieldError(field, 'Vui lòng nhập tên lớp');
+                } else if (value.length < 2) {
+                    showFieldError(field, 'Tên lớp phải có ít nhất 2 ký tự');
+                }
+                break;
+                
+            case 'grade':
+                if (!value) {
+                    showFieldError(field, 'Vui lòng chọn khối lớp');
+                }
+                break;
+                
+            case 'academic_year_id':
+                if (!value) {
+                    showFieldError(field, 'Vui lòng chọn năm học');
+                }
+                break;
+                
+            case 'max_student':
+                if (!value) {
+                    showFieldError(field, 'Vui lòng nhập sĩ số tối đa');
+                } else if (value < 1 || value > 60) {
+                    showFieldError(field, 'Sĩ số tối đa phải từ 1 đến 60');
+                }
+                break;
+
+            case 'head_teacher_id':
+                // Chỉ validate nếu cả head_teacher_id và head_teacher đều trống
+                const headTeacherInput = document.getElementById('head_teacher').value.trim();
+                if (!value && !headTeacherInput) {
+                    showFieldError(field, 'Vui lòng chọn hoặc nhập giáo viên chủ nhiệm');
+                }
+                break;
+        }
+    }
+
+    // Show field error
+    function showFieldError(field, message) {
+        field.classList.add('is-invalid');
+        const feedback = field.nextElementSibling;
+        if (feedback && feedback.classList.contains('invalid-feedback')) {
+            feedback.textContent = message;
+        }
+    }
+
+    // Clear field error
+    function clearFieldError(event) {
+        const field = event.target;
+        field.classList.remove('is-invalid');
+        const feedback = field.nextElementSibling;
+        if (feedback && feedback.classList.contains('invalid-feedback')) {
+            feedback.textContent = '';
+        }
+    }
+
+    // Handle form submission
+    async function handleFormSubmit(event) {
+        event.preventDefault();
+        
+        // Validate form
+        if (!validateForm()) {
+            return;
+        }
+        
+        const submitBtn = document.getElementById('submitBtn');
+        const originalText = submitBtn.innerHTML;
+        
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang xử lý...';
+        
+        try {
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Convert boolean values
+            data.is_active = data.is_active === 'true';
+            
+            const url = isEdit ? `/classroom/api/update/${data.id}` : '/classroom/api/create';
+            const method = isEdit ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                window.FaceID?.NotificationSystem?.success(result.message || `${isEdit ? 'Cập nhật' : 'Tạo'} lớp học thành công`);
+                
+                // Redirect to list page
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('classroom.list') }}";
+                }, 1500);
+                
+            } else {
+                window.FaceID?.NotificationSystem?.error(result.message || `Lỗi khi ${isEdit ? 'cập nhật' : 'tạo'} lớp học`);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+            
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            window.FaceID?.NotificationSystem?.error(`Lỗi kết nối khi ${isEdit ? 'cập nhật' : 'tạo'} lớp học`);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    }
+
+    // Validate entire form
+    function validateForm() {
+        const form = document.getElementById('classroomForm');
+        let isValid = true;
+        
+        // Check required fields
+        const requiredFields = ['class_name', 'grade', 'academic_year_id', 'max_student'];
+        
+        requiredFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            const value = field.value.trim();
+            
+            if (!value) {
+                showFieldError(field, 'Trường này là bắt buộc');
+                isValid = false;
+            } else {
+                // Trigger individual validation
+                validateField({ target: field });
+                if (field.classList.contains('is-invalid')) {
+                    isValid = false;
+                }
+            }
+        });
+        
+        // Validate head_teacher_id and head_teacher (at least one required)
+        const headTeacherId = document.getElementById('head_teacher_id').value.trim();
+        const headTeacherName = document.getElementById('head_teacher').value.trim();
+        
+        if (!headTeacherId && !headTeacherName) {
+            showFieldError(document.getElementById('head_teacher_id'), 'Vui lòng chọn hoặc nhập giáo viên chủ nhiệm');
+            isValid = false;
+        }
+        
+        return isValid;
+    }
+
+    // Initialize form on page load
+    initializeForm();
+});
+</script>
+{% endblock %}

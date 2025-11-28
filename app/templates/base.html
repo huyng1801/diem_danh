@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-100">
+<head>
+    <!-- Meta tags -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="description" content="{% block meta_description %}Hệ thống điểm danh học sinh THCS bằng Face ID - An toàn, chính xác, hiện đại{% endblock %}">
+    <meta name="keywords" content="{% block meta_keywords %}điểm danh, face id, nhận diện khuôn mặt, học sinh, trường học, THCS{% endblock %}">
+    <meta name="author" content="Face-ID Attendance System">
+    
+    <!-- SEO Meta Tags -->
+    <meta property="og:title" content="{% block og_title %}Face-ID Attendance System - Hệ thống điểm danh Face ID{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Hệ thống điểm danh học sinh THCS bằng Face ID - An toàn, chính xác, hiện đại{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='images/logo.png') }}{% endblock %}">
+    
+    <!-- Title -->
+    <title>{% block title %}Face-ID Attendance System{% endblock %} - Hệ thống điểm danh Face ID</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" 
+          integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
+          integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" 
+          crossorigin="anonymous" referrerpolicy="no-referrer">
+    
+    <!-- Chart.js for statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js" 
+            integrity="sha512-A7lOobdh2nY0iEfaej7ua7qEY6zWQAEPP6PLUgaWILrSDvZKDZ/GhftC9EGJQpFt/94Lv8y2qN8lj6TrSo46A==" 
+            crossorigin="anonymous"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    
+    <!-- Additional CSS -->
+    {% block extra_css %}{% endblock %}
+    
+    <!-- Theme Detection and Setup -->
+    <script>
+        // Theme detection and setup
+        (function() {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', theme);
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
+</head>
+
+<body class="{% block body_class %}{% endblock %}">
+    <!-- Skip to main content for accessibility -->
+    <a class="visually-hidden-focusable" href="#main-content">Bỏ qua nội dung chính</a>
+    
+    <!-- Loading Overlay (will be controlled by JavaScript) -->
+    <div id="global-loading" class="loading-overlay-global position-fixed top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center" style="background-color: rgba(0, 0, 0, 0.5); z-index: 9999;">
+        <div class="bg-white rounded-3 p-4 shadow text-center">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Đang tải...</span>
+            </div>
+            <div class="text-muted">Đang tải...</div>
+        </div>
+    </div>
+    
+    <!-- Notification Container -->
+    <div class="notification-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
+    
+    <!-- Main Content -->
+    <main id="main-content" class="{% block main_class %}{% endblock %}">
+        {% block content %}
+        <div class="container-fluid py-4">
+            <div class="row justify-content-center">
+                <div class="col-12">
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Nội dung trang sẽ được hiển thị ở đây
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="{% block footer_class %}footer mt-auto py-3 bg-light border-top{% endblock %}" style="margin-left: 220px;">
+        {% block footer %}
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <p class="mb-0 text-muted">
+                        <small>
+                            © 2024 <strong>Face-ID Attendance System</strong>. 
+                            Hệ thống điểm danh học sinh THCS.
+                        </small>
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <small class="text-muted">
+                        <i class="fas fa-shield-alt me-1"></i>
+                        Bảo mật & An toàn
+                        <span class="mx-2">|</span>
+                        <i class="fas fa-code me-1"></i>
+                        Phiên bản 1.0.0
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endblock %}
+    </footer>
+    
+    <!-- Scripts -->
+    
+    <!-- Bootstrap 5.3 JS Bundle (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" 
+            integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" 
+            crossorigin="anonymous"></script>
+    
+    <!-- Core JavaScript -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <!-- Conditional JavaScript based on page type -->
+    {% block conditional_js %}{% endblock %}
+    
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', filename='js/form_validation.js') }}"></script>
+    
+    <!-- Additional Scripts -->
+    {% block extra_js %}{% endblock %}
+    
+    <!-- Page-specific inline scripts -->
+    {% block inline_js %}{% endblock %}
+    
+    <!-- Theme Toggle Script -->
+    <script>
+        // Theme toggle functionality
+        window.toggleTheme = function() {
+            const currentTheme = localStorage.getItem('theme') || 'light';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            localStorage.setItem('theme', newTheme);
+            document.documentElement.setAttribute('data-bs-theme', newTheme);
+            
+            if (newTheme === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            } else {
+                document.documentElement.classList.remove('dark-theme');
+            }
+            
+            // Update theme toggle button if exists
+            const themeToggle = document.querySelector('[data-bs-toggle="theme"]');
+            if (themeToggle) {
+                const icon = themeToggle.querySelector('i');
+                if (icon) {
+                    icon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+                }
+            }
+        };
+        
+        // Initialize theme toggle button
+        FaceID.DOMUtils.ready(() => {
+            const themeToggle = document.querySelector('[data-bs-toggle="theme"]');
+            if (themeToggle) {
+                const currentTheme = localStorage.getItem('theme') || 'light';
+                const icon = themeToggle.querySelector('i');
+                if (icon) {
+                    icon.className = currentTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+                }
+                
+                themeToggle.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    window.toggleTheme();
+                });
+            }
+        });
+    </script>
+    
+    <!-- Flash Messages Support -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <script>
+                FaceID.DOMUtils.ready(() => {
+                    {% for category, message in messages %}
+                        FaceID.NotificationSystem.{{ 'success' if category == 'success' else 'error' if category == 'error' else 'warning' if category == 'warning' else 'info' }}('{{ message|safe }}');
+                    {% endfor %}
+                });
+            </script>
+        {% endif %}
+    {% endwith %}
+    
+    <!-- CSRF Token for AJAX requests -->
+    <script>
+        // Make CSRF token available for AJAX requests
+        window.csrfToken = '{{ csrf_token() if csrf_token else '' }}';
+        
+        // Add CSRF token to all AJAX requests
+        if (window.csrfToken) {
+            // Add to APIClient default headers
+            if (window.FaceID && window.FaceID.APIClient) {
+                const originalRequest = window.FaceID.APIClient.request;
+                window.FaceID.APIClient.request = function(url, options = {}) {
+                    options.headers = options.headers || {};
+                    options.headers['X-CSRFToken'] = window.csrfToken;
+                    return originalRequest.call(this, url, options);
+                };
+            }
+        }
+    </script>
+    
+    <!-- Performance Monitoring -->
+    <script>
+        // Simple performance monitoring
+        window.addEventListener('load', () => {
+            if ('performance' in window) {
+                const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+                console.log(`Page loaded in ${loadTime}ms`);
+                
+                // Report slow page loads (> 3 seconds)
+                if (loadTime > 3000) {
+                    console.warn('Slow page load detected:', loadTime + 'ms');
+                }
+            }
+        });
+    </script>
+    
+    <!-- Error Reporting -->
+    <script>
+        // Global error handler
+        window.addEventListener('error', (e) => {
+            console.error('JavaScript Error:', e.error);
+            
+            // Don't show user notification for development
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                FaceID.NotificationSystem.error('Đã xảy ra lỗi. Vui lòng tải lại trang.');
+            }
+        });
+        
+        // Promise rejection handler
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('Unhandled Promise Rejection:', e.reason);
+        });
+    </script>
+</body>
+</html>

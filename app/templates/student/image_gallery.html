@@ -1,0 +1,617 @@
+{% extends "layout.html" %}
+
+{% block title %}Thư viện ảnh - {{ student.full_name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+    <a href="{{ url_for('admin.dashboard') }}" class="text-decoration-none">
+        <i class="fas fa-home me-1"></i>Trang chủ
+    </a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{{ url_for('student.list') }}" class="text-decoration-none">
+        Quản lý học sinh
+    </a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{{ url_for('student.detail', id=student.id) }}" class="text-decoration-none">
+        {{ student.full_name }}
+    </a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">
+    Thư viện ảnh
+</li>
+{% endblock %}
+
+{% block layout_content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-gradient-primary text-white">
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h4 class="mb-1">
+                                <i class="fas fa-images me-2"></i>
+                                Thư viện ảnh khuôn mặt
+                            </h4>
+                            <h6 class="mb-0 opacity-75">{{ student.full_name }} ({{ student.student_code }})</h6>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <div class="badge bg-light text-dark fs-6 mb-2">
+                                <i class="fas fa-images me-1"></i>
+                                {{ face_images|length }} ảnh
+                            </div>
+                            <div class="badge bg-{{ 'success' if student.face_recognition_enabled else 'warning' }} fs-6">
+                                <i class="fas fa-{{ 'check-circle' if student.face_recognition_enabled else 'exclamation-circle' }} me-1"></i>
+                                {{ 'Nhận diện kích hoạt' if student.face_recognition_enabled else 'Chưa kích hoạt' }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body p-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center gap-3">
+                                <!-- View Mode Toggle -->
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="viewMode" id="gridView" value="grid" checked>
+                                    <label class="btn btn-outline-primary" for="gridView">
+                                        <i class="fas fa-th me-1"></i>Lưới
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="viewMode" id="listView" value="list">
+                                    <label class="btn btn-outline-primary" for="listView">
+                                        <i class="fas fa-list me-1"></i>Danh sách
+                                    </label>
+                                </div>
+
+                                <!-- Sort Options -->
+                                <select class="form-select" id="sortBy" style="width: auto;">
+                                    <option value="newest">Mới nhất</option>
+                                    <option value="oldest">Cũ nhất</option>
+                                    <option value="name">Tên file</option>
+                                    <option value="quality">Chất lượng</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 text-md-end">
+                            <div class="d-flex justify-content-md-end gap-2">
+                                <button type="button" class="btn btn-outline-secondary" id="selectAll">
+                                    <i class="fas fa-check-square me-1"></i>Chọn tất cả
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" id="deleteSelected" disabled>
+                                    <i class="fas fa-trash me-1"></i>Xóa đã chọn (<span id="selectedCount">0</span>)
+                                </button>
+                                <a href="{{ url_for('student.image_upload', id=student.id) }}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-1"></i>Thêm ảnh
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Gallery -->
+    <div class="row" id="imageGallery">
+        {% if face_images %}
+            {% for image in face_images %}
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-4 image-item" data-quality="{{ image.quality or 'unknown' }}" data-date="{{ image.created_at.isoformat() }}">
+                <div class="card h-100 shadow-sm image-card">
+                    <!-- Selection Checkbox -->
+                    <div class="position-absolute top-0 start-0 p-2 z-index-1">
+                        <input type="checkbox" class="form-check-input image-select" value="{{ image.id }}" onchange="updateSelection()">
+                    </div>
+                    
+                    <!-- Quality Badge -->
+                    <div class="position-absolute top-0 end-0 p-2 z-index-1">
+                        <span class="badge bg-{{ 'success' if image.quality == 'good' else 'warning' if image.quality == 'medium' else 'danger' if image.quality == 'poor' else 'secondary' }}">
+                            {{ image.quality or 'N/A' }}
+                        </span>
+                    </div>
+                    
+                    <!-- Image -->
+                    <div class="card-img-top position-relative overflow-hidden" style="height: 200px; cursor: pointer;" onclick="openImageModal('{{ image.image_path }}', {{ image.id }}, '{{ image.filename }}', '{{ image.created_at.strftime('%d/%m/%Y %H:%M') }}', '{{ image.quality or 'N/A' }}')">
+                        <img src="{{ image.image_path }}" 
+                             class="w-100 h-100" 
+                             style="object-fit: cover; transition: transform 0.3s;"
+                             alt="Face {{ loop.index }}"
+                             loading="lazy">
+                        <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-25 d-flex align-items-center justify-content-center opacity-0 image-overlay">
+                            <i class="fas fa-eye text-white fa-2x"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- Card Body -->
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>
+                                {{ image.created_at.strftime('%d/%m') }}
+                            </small>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" 
+                                        class="btn btn-outline-primary btn-sm" 
+                                        onclick="downloadImage('{{ image.image_path }}', '{{ image.filename }}')"
+                                        title="Tải xuống">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-danger btn-sm" 
+                                        onclick="deleteImage({{ image.id }}, '{{ image.filename }}')"
+                                        title="Xóa">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-images fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">Chưa có ảnh nào</h4>
+                <p class="text-muted mb-4">Hãy tải lên ảnh khuôn mặt để kích hoạt tính năng nhận diện</p>
+                <a href="{{ url_for('student.image_upload', id=student.id) }}" class="btn btn-primary">
+                    <i class="fas fa-upload me-1"></i>
+                    Tải lên ảnh ngay
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if face_images|length > 0 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-muted">
+                    Hiển thị {{ face_images|length }} ảnh
+                </div>
+                <div>
+                    <!-- Add pagination here if needed -->
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Back Button -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{{ url_for('student.detail', id=student.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>
+                Quay lại thông tin học sinh
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Image Preview Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye me-1"></i>
+                    Xem ảnh chi tiết
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="row g-0">
+                    <div class="col-lg-8">
+                        <!-- Main Image -->
+                        <div class="text-center p-4 bg-dark">
+                            <img id="modalImage" class="img-fluid rounded" style="max-height: 70vh;" alt="Preview">
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <!-- Image Info -->
+                        <div class="p-4">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Thông tin ảnh
+                            </h6>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Tên file:</label>
+                                <div id="modalFileName" class="fw-bold"></div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Chất lượng:</label>
+                                <div>
+                                    <span id="modalQuality" class="badge"></span>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Thời gian tải lên:</label>
+                                <div id="modalDate" class="fw-bold"></div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-primary" id="modalDownload">
+                                    <i class="fas fa-download me-1"></i>
+                                    Tải xuống
+                                </button>
+                                <button type="button" class="btn btn-outline-warning" id="modalSetThumbnail">
+                                    <i class="fas fa-star me-1"></i>
+                                    Đặt làm ảnh đại diện
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" id="modalDelete">
+                                    <i class="fas fa-trash me-1"></i>
+                                    Xóa ảnh này
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const studentId = {{ student.id }};
+    let selectedImages = new Set();
+    let currentImageId = null;
+
+    // Initialize page
+    function initializePage() {
+        setupEventListeners();
+        setupHoverEffects();
+        updateSelection();
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+        // View mode toggle
+        document.querySelectorAll('input[name="viewMode"]').forEach(radio => {
+            radio.addEventListener('change', handleViewModeChange);
+        });
+
+        // Sort change
+        document.getElementById('sortBy').addEventListener('change', handleSortChange);
+
+        // Select all
+        document.getElementById('selectAll').addEventListener('click', handleSelectAll);
+
+        // Delete selected
+        document.getElementById('deleteSelected').addEventListener('click', handleDeleteSelected);
+
+        // Modal events
+        document.getElementById('modalDownload').addEventListener('click', handleModalDownload);
+        document.getElementById('modalSetThumbnail').addEventListener('click', handleSetThumbnail);
+        document.getElementById('modalDelete').addEventListener('click', handleModalDelete);
+    }
+
+    // Setup hover effects
+    function setupHoverEffects() {
+        document.querySelectorAll('.image-card').forEach(card => {
+            const img = card.querySelector('img');
+            const overlay = card.querySelector('.image-overlay');
+            
+            card.addEventListener('mouseenter', () => {
+                img.style.transform = 'scale(1.05)';
+                overlay.style.opacity = '1';
+            });
+            
+            card.addEventListener('mouseleave', () => {
+                img.style.transform = 'scale(1)';
+                overlay.style.opacity = '0';
+            });
+        });
+    }
+
+    // Handle view mode change
+    function handleViewModeChange(event) {
+        const viewMode = event.target.value;
+        const gallery = document.getElementById('imageGallery');
+        
+        if (viewMode === 'list') {
+            gallery.querySelectorAll('.image-item').forEach(item => {
+                item.className = 'col-12 mb-3 image-item';
+                const card = item.querySelector('.image-card');
+                card.className = 'card shadow-sm image-card';
+                card.style.flexDirection = 'row';
+                card.style.height = 'auto';
+                
+                const imgContainer = card.querySelector('.card-img-top');
+                imgContainer.style.width = '150px';
+                imgContainer.style.height = '120px';
+                imgContainer.style.flexShrink = '0';
+            });
+        } else {
+            gallery.querySelectorAll('.image-item').forEach(item => {
+                item.className = 'col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-4 image-item';
+                const card = item.querySelector('.image-card');
+                card.className = 'card h-100 shadow-sm image-card';
+                card.style.flexDirection = '';
+                card.style.height = '';
+                
+                const imgContainer = card.querySelector('.card-img-top');
+                imgContainer.style.width = '';
+                imgContainer.style.height = '200px';
+                imgContainer.style.flexShrink = '';
+            });
+        }
+    }
+
+    // Handle sort change
+    function handleSortChange(event) {
+        const sortBy = event.target.value;
+        const gallery = document.getElementById('imageGallery');
+        const items = Array.from(gallery.querySelectorAll('.image-item'));
+        
+        items.sort((a, b) => {
+            switch (sortBy) {
+                case 'newest':
+                    return new Date(b.dataset.date) - new Date(a.dataset.date);
+                case 'oldest':
+                    return new Date(a.dataset.date) - new Date(b.dataset.date);
+                case 'name':
+                    return a.querySelector('img').alt.localeCompare(b.querySelector('img').alt);
+                case 'quality':
+                    const qualityOrder = { 'good': 3, 'medium': 2, 'poor': 1, 'unknown': 0 };
+                    return (qualityOrder[b.dataset.quality] || 0) - (qualityOrder[a.dataset.quality] || 0);
+                default:
+                    return 0;
+            }
+        });
+        
+        // Remove and re-add sorted items
+        items.forEach(item => item.remove());
+        items.forEach(item => gallery.appendChild(item));
+    }
+
+    // Handle select all
+    function handleSelectAll() {
+        const checkboxes = document.querySelectorAll('.image-select');
+        const allSelected = Array.from(checkboxes).every(cb => cb.checked);
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = !allSelected;
+            if (checkbox.checked) {
+                selectedImages.add(checkbox.value);
+            } else {
+                selectedImages.delete(checkbox.value);
+            }
+        });
+        
+        updateSelection();
+    }
+
+    // Update selection state
+    window.updateSelection = function() {
+        document.getElementById('selectedCount').textContent = selectedImages.size;
+        document.getElementById('deleteSelected').disabled = selectedImages.size === 0;
+        
+        const selectAllBtn = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.image-select');
+        const allSelected = Array.from(checkboxes).every(cb => cb.checked);
+        
+        selectAllBtn.innerHTML = allSelected ? 
+            '<i class="fas fa-square me-1"></i>Bỏ chọn tất cả' : 
+            '<i class="fas fa-check-square me-1"></i>Chọn tất cả';
+    };
+
+    // Handle delete selected
+    function handleDeleteSelected() {
+        if (selectedImages.size === 0) return;
+        
+        if (!confirm(`Bạn có chắc muốn xóa ${selectedImages.size} ảnh đã chọn?`)) return;
+        
+        deleteMultipleImages(Array.from(selectedImages));
+    }
+
+    // Open image modal
+    window.openImageModal = function(imagePath, imageId, fileName, date, quality) {
+        currentImageId = imageId;
+        
+        document.getElementById('modalImage').src = imagePath;
+        document.getElementById('modalFileName').textContent = fileName;
+        document.getElementById('modalDate').textContent = date;
+        
+        const qualityBadge = document.getElementById('modalQuality');
+        qualityBadge.textContent = quality;
+        qualityBadge.className = `badge bg-${quality === 'good' ? 'success' : quality === 'medium' ? 'warning' : quality === 'poor' ? 'danger' : 'secondary'}`;
+        
+        // Store image path for download
+        document.getElementById('modalDownload').setAttribute('data-path', imagePath);
+        document.getElementById('modalDownload').setAttribute('data-filename', fileName);
+        
+        const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+        modal.show();
+    };
+
+    // Handle modal download
+    function handleModalDownload() {
+        const path = this.getAttribute('data-path');
+        const filename = this.getAttribute('data-filename');
+        downloadImage(path, filename);
+    }
+
+    // Handle set thumbnail
+    async function handleSetThumbnail() {
+        if (!currentImageId) return;
+        
+        try {
+            const response = await fetch(`/student/api/${studentId}/set-thumbnail`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ image_id: currentImageId })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                window.FaceID?.NotificationSystem?.success('Đã đặt làm ảnh đại diện');
+            } else {
+                window.FaceID?.NotificationSystem?.error(result.message || 'Lỗi khi đặt ảnh đại diện');
+            }
+            
+        } catch (error) {
+            console.error('Set thumbnail error:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối');
+        }
+    }
+
+    // Handle modal delete
+    function handleModalDelete() {
+        if (!currentImageId) return;
+        
+        const fileName = document.getElementById('modalFileName').textContent;
+        deleteImage(currentImageId, fileName);
+        
+        // Close modal
+        bootstrap.Modal.getInstance(document.getElementById('imageModal')).hide();
+    }
+
+    // Download image
+    window.downloadImage = function(imagePath, filename) {
+        const link = document.createElement('a');
+        link.href = imagePath;
+        link.download = filename;
+        link.click();
+    };
+
+    // Delete single image
+    window.deleteImage = async function(imageId, filename) {
+        if (!confirm(`Bạn có chắc muốn xóa ảnh "${filename}"?`)) return;
+        
+        try {
+            const response = await fetch(`/student/api/${studentId}/delete-image/${imageId}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                window.FaceID?.NotificationSystem?.success('Đã xóa ảnh');
+                
+                // Remove from DOM
+                const imageItem = document.querySelector(`.image-select[value="${imageId}"]`).closest('.image-item');
+                imageItem.remove();
+                
+                // Update selection
+                selectedImages.delete(imageId.toString());
+                updateSelection();
+                
+            } else {
+                window.FaceID?.NotificationSystem?.error(result.message || 'Lỗi khi xóa ảnh');
+            }
+            
+        } catch (error) {
+            console.error('Delete error:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi xóa ảnh');
+        }
+    };
+
+    // Delete multiple images
+    async function deleteMultipleImages(imageIds) {
+        try {
+            const response = await fetch(`/student/api/${studentId}/delete-images`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ image_ids: imageIds })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                window.FaceID?.NotificationSystem?.success(`Đã xóa ${imageIds.length} ảnh`);
+                
+                // Remove from DOM
+                imageIds.forEach(id => {
+                    const imageItem = document.querySelector(`.image-select[value="${id}"]`).closest('.image-item');
+                    if (imageItem) imageItem.remove();
+                });
+                
+                // Clear selection
+                selectedImages.clear();
+                updateSelection();
+                
+            } else {
+                window.FaceID?.NotificationSystem?.error(result.message || 'Lỗi khi xóa ảnh');
+            }
+            
+        } catch (error) {
+            console.error('Delete error:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi xóa ảnh');
+        }
+    }
+
+    // Update selection when checkbox changes
+    document.addEventListener('change', function(event) {
+        if (event.target.classList.contains('image-select')) {
+            const imageId = event.target.value;
+            if (event.target.checked) {
+                selectedImages.add(imageId);
+            } else {
+                selectedImages.delete(imageId);
+            }
+            updateSelection();
+        }
+    });
+
+    // Initialize page
+    initializePage();
+});
+</script>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+}
+
+.image-overlay {
+    transition: opacity 0.3s ease;
+}
+
+.image-card img {
+    transition: transform 0.3s ease;
+}
+
+.z-index-1 {
+    z-index: 1;
+}
+
+.modal-xl .modal-body {
+    overflow: hidden;
+}
+
+@media (max-width: 991.98px) {
+    .modal-xl .row.g-0 {
+        flex-direction: column;
+    }
+    
+    .modal-xl .col-lg-4 {
+        border-top: 1px solid #dee2e6;
+    }
+}
+</style>
+{% endblock %}

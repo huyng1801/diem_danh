@@ -1,0 +1,1118 @@
+{% extends "layout.html" %}
+
+{% block title %}Lịch sử điểm danh{% endblock %}
+
+{% block page_title %}Lịch sử điểm danh{% endblock %}
+
+{% block page_description %}Tra cứu và quản lý lịch sử điểm danh của tất cả các lớp{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">
+    <i class="fas fa-calendar-check"></i>
+    Lịch sử điểm danh
+</li>
+{% endblock %}
+
+{% block page_actions %}
+<button type="button" class="btn btn-primary" onclick="newAttendanceSession()">
+    <i class="fas fa-plus me-2"></i>
+    Điểm danh mới
+</button>
+<button type="button" class="btn btn-info" onclick="generateStatistics()">
+    <i class="fas fa-chart-bar me-2"></i>
+    Thống kê
+</button>
+<div class="dropdown d-inline-block">
+    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="fas fa-ellipsis-h me-2"></i>
+        Thêm
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#" onclick="resetFilters()">
+            <i class="fas fa-refresh me-2"></i>Đặt lại bộ lọc
+        </a></li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block layout_content %}
+<div class="row">
+    <div class="col-lg-9">
+        <!-- Search and Filter Panel -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-search me-2"></i>
+                    Tìm kiếm và lọc
+                </h6>
+            </div>
+            <div class="card-body">
+                <form id="search-form">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">Lớp học</label>
+                            <select class="form-select" id="class-filter">
+                                <option value="">Tất cả lớp</option>
+                                <!-- Classes will be loaded here -->
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Buổi học</label>
+                            <select class="form-select" id="session-filter">
+                                <option value="">Tất cả buổi</option>
+                                <option value="morning">Buổi sáng</option>
+                                <option value="afternoon">Buổi chiều</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Từ ngày</label>
+                            <input type="date" class="form-control" id="from-date">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Đến ngày</label>
+                            <input type="date" class="form-control" id="to-date">
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Trạng thái phiên</label>
+                            <select class="form-select" id="status-filter">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="completed">Đã hoàn thành</option>
+                                <option value="in-progress">Đang diễn ra</option>
+                                <option value="cancelled">Đã hủy</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Sắp xếp theo</label>
+                            <select class="form-select" id="sort-by">
+                                <option value="date_desc">Ngày (Mới nhất)</option>
+                                <option value="date_asc">Ngày (Cũ nhất)</option>
+                                <option value="class_name">Tên lớp</option>
+                                <option value="attendance_rate">Tỷ lệ điểm danh</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Tìm kiếm</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="search-input" placeholder="Tìm theo tên lớp, giáo viên...">
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearSearch()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <button type="button" class="btn btn-primary" onclick="applyFilters()">
+                                <i class="fas fa-search me-2"></i>
+                                Tìm kiếm
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()">
+                                <i class="fas fa-refresh me-2"></i>
+                                Đặt lại
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="text-white-50 small">Tổng phiên</div>
+                                <div class="h5 mb-0" id="total-sessions">0</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-calendar-check fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="text-white-50 small">Tỷ lệ TB</div>
+                                <div class="h5 mb-0" id="avg-attendance">0%</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-percentage fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="text-white-50 small">Hôm nay</div>
+                                <div class="h5 mb-0" id="today-sessions">0</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-calendar-day fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="text-white-50 small">Cần xem xét</div>
+                                <div class="h5 mb-0" id="attention-needed">0</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-exclamation-triangle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Attendance History Table -->
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h6 class="m-0 font-weight-bold text-primary">
+                            <i class="fas fa-history me-2"></i>
+                            Lịch sử điểm danh
+                        </h6>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary active" onclick="switchView('table')">
+                                <i class="fas fa-table"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="switchView('grid')">
+                                <i class="fas fa-th"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted ms-3">
+                            Hiển thị <span id="showing-count">0</span> trong tổng số <span id="total-count">0</span> phiên
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <!-- Table View -->
+                <div id="table-view">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="history-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="15%">Ngày</th>
+                                    <th width="20%">Lớp học</th>
+                                    <th width="10%">Buổi</th>
+                                    <th width="15%">Giáo viên</th>
+                                    <th width="10%">Tỷ lệ</th>
+                                    <th width="10%">Trạng thái</th>
+                                    <th width="10%">Thời gian</th>
+                                    <th width="10%">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Grid View -->
+                <div id="grid-view" class="d-none p-3">
+                    <div class="row" id="grid-container">
+                        <!-- Grid items will be loaded here -->
+                    </div>
+                </div>
+                
+                <!-- Loading State -->
+                <div id="loading-state" class="text-center py-5 d-none">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Đang tải...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Đang tải dữ liệu...</p>
+                </div>
+                
+                <!-- Empty State -->
+                <div id="empty-state" class="text-center py-5 d-none">
+                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Không tìm thấy dữ liệu điểm danh</h5>
+                    <p class="text-muted">Thử thay đổi tiêu chí tìm kiếm hoặc tạo phiên điểm danh mới</p>
+                    <button type="button" class="btn btn-primary" onclick="newAttendanceSession()">
+                        <i class="fas fa-plus me-2"></i>
+                        Tạo phiên điểm danh mới
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="card-footer">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <select class="form-select form-select-sm d-inline-block w-auto" id="page-size">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span class="ms-2">phiên/trang</span>
+                    </div>
+                    
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0" id="pagination">
+                            <!-- Pagination will be generated here -->
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-3">
+        <!-- Recent Activity -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-clock me-2"></i>
+                    Hoạt động gần đây
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="activity-feed" id="recent-activity">
+                    <!-- Recent activity will be loaded here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Filters -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-filter me-2"></i>
+                    Lọc nhanh
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="quick-filter-buttons d-grid gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="filterToday()">
+                        <i class="fas fa-calendar-day me-2"></i>
+                        Hôm nay
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="filterThisWeek()">
+                        <i class="fas fa-calendar-week me-2"></i>
+                        Tuần này
+                    </button>
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="filterThisMonth()">
+                        <i class="fas fa-calendar-alt me-2"></i>
+                        Tháng này
+                    </button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="filterLowAttendance()">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Tỷ lệ thấp (<90%)
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="filterIncomplete()">
+                        <i class="fas fa-times-circle me-2"></i>
+                        Chưa hoàn thành
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Summary Statistics -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Thống kê tổng quan
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Tổng phiên điểm danh</div>
+                        <div class="stat-value" id="summary-total">0</div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <div class="stat-label">Phiên hoàn thành</div>
+                        <div class="stat-value text-success" id="summary-completed">0</div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <div class="stat-label">Tỷ lệ điểm danh TB</div>
+                        <div class="stat-value text-info" id="summary-avg-rate">0%</div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <div class="stat-label">Lớp tham gia</div>
+                        <div class="stat-value text-primary" id="summary-classes">0</div>
+                    </div>
+                </div>
+                
+                <!-- Mini Chart -->
+                <div class="mt-3">
+                    <canvas id="mini-chart" width="100" height="60"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .activity-feed {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .activity-item {
+        display: flex;
+        align-items-start;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e3e6f0;
+    }
+    
+    .activity-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    
+    .activity-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .activity-content {
+        flex: 1;
+        font-size: 0.875rem;
+    }
+    
+    .activity-time {
+        color: #6c757d;
+        font-size: 0.75rem;
+    }
+    
+    .summary-stats .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e3e6f0;
+    }
+    
+    .summary-stats .stat-item:last-child {
+        border-bottom: none;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+    
+    .stat-value {
+        font-weight: 700;
+        font-size: 1.125rem;
+    }
+    
+    .session-card {
+        border: 1px solid #e3e6f0;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .session-card:hover {
+        border-color: #007bff;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .session-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .session-title {
+        font-weight: 600;
+        color: #5a5c69;
+    }
+    
+    .session-meta {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+    
+    .attendance-rate-bar {
+        height: 4px;
+        background: #e3e6f0;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+    
+    .attendance-rate-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    
+    .table th {
+        border-top: none;
+        font-weight: 600;
+        color: #5a5c69;
+        font-size: 0.875rem;
+    }
+    
+    .table td {
+        vertical-align: middle;
+        font-size: 0.875rem;
+    }
+    
+    .badge-attendance {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+    }
+    
+    .pagination-sm .page-link {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+let pageSize = 25;
+let totalSessions = 0;
+let allSessions = [];
+let currentView = 'table';
+let currentSessionId = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    initializeHistoryPage();
+});
+
+function initializeHistoryPage() {
+    console.log('📱 Khởi động trang lịch sử điểm danh...');
+    
+    // Load initial data
+    loadClasses();
+    loadAttendanceHistory();
+    loadRecentActivity();
+    
+    // Set default date range (last 30 days)
+    setDefaultDateRange();
+    
+    // Setup event listeners
+    setupEventListeners();
+    
+    console.log('✅ Trang lịch sử đã sẵn sàng');
+}
+
+function setDefaultDateRange() {
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    document.getElementById('to-date').value = today.toISOString().split('T')[0];
+    document.getElementById('from-date').value = thirtyDaysAgo.toISOString().split('T')[0];
+}
+
+function setupEventListeners() {
+    // Search input with debounce
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(handleSearch, 300);
+        });
+    }
+    
+    // Page size change
+    const pageSize = document.getElementById('page-size');
+    if (pageSize) {
+        pageSize.addEventListener('change', handlePageSizeChange);
+    }
+    
+    // Auto-apply filters on change
+    ['class-filter', 'session-filter', 'status-filter', 'sort-by'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', applyFilters);
+        }
+    });
+}
+
+async function loadClasses() {
+    try {
+        const response = await fetch('/classroom/api/list?status=active&limit=1000');
+        const data = await response.json();
+        
+        if (data.success) {
+            const classFilter = document.getElementById('class-filter');
+            classFilter.innerHTML = '<option value="">Tất cả lớp</option>';
+            
+            data.data.classrooms.forEach(classroom => {
+                classFilter.innerHTML += `
+                    <option value="${classroom.id}">${classroom.class_name}</option>
+                `;
+            });
+        }
+    } catch (error) {
+        console.error('❌ Lỗi khi tải danh sách lớp:', error);
+    }
+}
+
+async function loadAttendanceHistory() {
+    showLoading();
+    
+    try {
+        const filters = getFilters();
+        const params = new URLSearchParams({
+            ...filters,
+            page: currentPage,
+            page_size: pageSize
+        });
+        
+        const response = await fetch(`/attendance/api/history?${params}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            allSessions = data.data.sessions || [];
+            totalSessions = data.data.total || 0;
+            
+            console.log(`✓ Tải ${allSessions.length} phiên điểm danh`);
+            
+            renderSessions();
+            updatePagination();
+            updateStatistics();
+        }
+    } catch (error) {
+        console.error('❌ Lỗi khi tải lịch sử:', error);
+        showEmptyState();
+    } finally {
+        hideLoading();
+    }
+}
+
+function getFilters() {
+    return {
+        class_id: document.getElementById('class-filter').value,
+        session_type: document.getElementById('session-filter').value,
+        status: document.getElementById('status-filter').value,
+        from_date: document.getElementById('from-date').value,
+        to_date: document.getElementById('to-date').value,
+        search: document.getElementById('search-input').value,
+        sort_by: document.getElementById('sort-by').value
+    };
+}
+
+function renderSessions() {
+    if (allSessions.length === 0) {
+        showEmptyState();
+        return;
+    }
+    
+    hideEmptyState();
+    
+    // Show the current view
+    document.getElementById('table-view').classList.toggle('d-none', currentView !== 'table');
+    document.getElementById('grid-view').classList.toggle('d-none', currentView !== 'grid');
+    
+    if (currentView === 'table') {
+        renderTableView();
+    } else if (currentView === 'grid') {
+        renderGridView();
+    }
+}
+
+function renderTableView() {
+    const tbody = document.getElementById('history-tbody');
+    
+    tbody.innerHTML = allSessions.map(session => `
+        <tr data-session-id="${session.id}">
+            <td>
+                <div class="fw-bold">${formatDate(session.date)}</div>
+                <small class="text-muted">${getDayName(session.date)}</small>
+            </td>
+            <td>
+                <div class="fw-bold text-primary">${session.class_name}</div>
+                <small class="text-muted">${session.grade}</small>
+            </td>
+            <td>
+                <span class="badge ${session.session_type === 'morning' ? 'bg-info' : 'bg-warning'}">
+                    ${session.session_type === 'morning' ? 'Sáng' : 'Chiều'}
+                </span>
+            </td>
+            <td>
+                <div>${session.teacher_name}</div>
+                <small class="text-muted">${session.teacher_title || ''}</small>
+            </td>
+            <td>
+                <div class="d-flex align-items-center">
+                    <span class="fw-bold ${getAttendanceRateClass(session.attendance_rate)}">
+                        ${session.attendance_rate}%
+                    </span>
+                    <div class="attendance-rate-bar ms-2 flex-fill">
+                        <div class="attendance-rate-fill bg-success" 
+                             style="width: ${session.attendance_rate}%"></div>
+                    </div>
+                </div>
+                <small class="text-muted">${session.present_count}/${session.total_students}</small>
+            </td>
+            <td>
+                <span class="badge ${getStatusBadgeClass(session.status)}">
+                    ${getStatusDisplay(session.status)}
+                </span>
+            </td>
+            <td>
+                <div class="fw-bold">${session.start_time ? formatTime(session.start_time) : '-'}</div>
+                <small class="text-muted">${session.duration || '-'}</small>
+            </td>
+            <td>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                            onclick="viewAttendanceResult(${session.id})" title="Xem kết quả">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-success" 
+                            onclick="exportSession(${session.id})" title="Xuất Excel">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+    
+    updateShowingCount();
+}
+
+function renderGridView() {
+    const container = document.getElementById('grid-container');
+    
+    container.innerHTML = allSessions.map(session => `
+        <div class="col-md-6 col-lg-4">
+            <div class="session-card" data-session-id="${session.id}">
+                <div class="session-header">
+                    <div class="session-title">${session.class_name}</div>
+                    <span class="badge ${session.session_type === 'morning' ? 'bg-info' : 'bg-warning'}">
+                        ${session.session_type === 'morning' ? 'Sáng' : 'Chiều'}
+                    </span>
+                </div>
+                
+                <div class="session-meta">
+                    <div class="mb-2">
+                        <i class="fas fa-calendar me-1"></i>
+                        ${formatDate(session.date)}
+                    </div>
+                    <div class="mb-2">
+                        <i class="fas fa-user me-1"></i>
+                        ${session.teacher_name}
+                    </div>
+                    <div class="mb-2">
+                        <i class="fas fa-users me-1"></i>
+                        ${session.present_count}/${session.total_students} học sinh
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-bold ${getAttendanceRateClass(session.attendance_rate)}">
+                        ${session.attendance_rate}%
+                    </span>
+                    <span class="badge ${getStatusBadgeClass(session.status)}">
+                        ${getStatusDisplay(session.status)}
+                    </span>
+                </div>
+                
+                <div class="attendance-rate-bar">
+                    <div class="attendance-rate-fill bg-success" style="width: ${session.attendance_rate}%"></div>
+                </div>
+                
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary me-1" 
+                            onclick="viewAttendanceResult(${session.id})">
+                        <i class="fas fa-eye"></i> Xem
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-success" 
+                            onclick="exportSession(${session.id})">
+                        <i class="fas fa-download"></i> Xuất
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    updateShowingCount();
+}
+
+// Helper functions for formatting
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+function getDayName(dateStr) {
+    const date = new Date(dateStr);
+    const days = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+    return days[date.getDay()];
+}
+
+function formatRelativeTime(timeStr) {
+    const date = new Date(timeStr);
+    const now = new Date();
+    const diff = now - date;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days} ngày trước`;
+    if (hours > 0) return `${hours} giờ trước`;
+    if (minutes > 0) return `${minutes} phút trước`;
+    return 'Vừa xong';
+}
+
+function formatTime(timeStr) {
+    if (!timeStr) return '-';
+    const date = new Date(timeStr);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+}
+
+function getAttendanceRateClass(rate) {
+    if (rate >= 95) return 'text-success';
+    if (rate >= 90) return 'text-warning';
+    return 'text-danger';
+}
+
+function getStatusBadgeClass(status) {
+    switch (status) {
+        case 'completed': return 'bg-success';
+        case 'in-progress': return 'bg-primary';
+        case 'cancelled': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+function getStatusDisplay(status) {
+    switch (status) {
+        case 'completed': return 'Hoàn thành';
+        case 'in-progress': return 'Đang diễn ra';
+        case 'cancelled': return 'Đã hủy';
+        default: return 'Không xác định';
+    }
+}
+
+function updateStatistics() {
+    const totalCompleted = allSessions.filter(s => s.status === 'completed').length;
+    const avgAttendance = allSessions.length > 0 ? 
+        allSessions.reduce((sum, s) => sum + s.attendance_rate, 0) / allSessions.length : 0;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const todaySessions = allSessions.filter(s => s.date === today).length;
+    
+    const attentionNeeded = allSessions.filter(s => 
+        s.attendance_rate < 90 || s.status === 'in-progress'
+    ).length;
+    
+    document.getElementById('total-sessions').textContent = totalSessions;
+    document.getElementById('avg-attendance').textContent = `${avgAttendance.toFixed(1)}%`;
+    document.getElementById('today-sessions').textContent = todaySessions;
+    document.getElementById('attention-needed').textContent = attentionNeeded;
+}
+
+function updateShowingCount() {
+    document.getElementById('showing-count').textContent = allSessions.length;
+    document.getElementById('total-count').textContent = totalSessions;
+}
+
+function updatePagination() {
+    const totalPages = Math.ceil(totalSessions / pageSize);
+    const pagination = document.getElementById('pagination');
+    
+    if (totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = '';
+    
+    // Previous button
+    paginationHTML += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${currentPage - 1})">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        </li>
+    `;
+    
+    // Page numbers
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    
+    if (startPage > 1) {
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(1)">1</a></li>`;
+        if (startPage > 2) {
+            paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        paginationHTML += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="goToPage(${i})">${i}</a>
+            </li>
+        `;
+    }
+    
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(${totalPages})">${totalPages}</a></li>`;
+    }
+    
+    // Next button
+    paginationHTML += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${currentPage + 1})">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+    `;
+    
+    pagination.innerHTML = paginationHTML;
+}
+
+// Event Handlers
+function applyFilters() {
+    currentPage = 1;
+    loadAttendanceHistory();
+}
+
+function resetFilters() {
+    document.getElementById('class-filter').value = '';
+    document.getElementById('session-filter').value = '';
+    document.getElementById('status-filter').value = '';
+    document.getElementById('sort-by').value = 'date_desc';
+    document.getElementById('search-input').value = '';
+    
+    setDefaultDateRange();
+    applyFilters();
+}
+
+function clearSearch() {
+    document.getElementById('search-input').value = '';
+    applyFilters();
+}
+
+function handleSearch() {
+    currentPage = 1;
+    applyFilters();
+}
+
+function handlePageSizeChange() {
+    pageSize = parseInt(document.getElementById('page-size').value);
+    currentPage = 1;
+    loadAttendanceHistory();
+}
+
+function goToPage(page) {
+    if (page >= 1 && page <= Math.ceil(totalSessions / pageSize)) {
+        currentPage = page;
+        loadAttendanceHistory();
+    }
+}
+
+function switchView(view) {
+    currentView = view;
+    
+    // Update button states
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    buttons.forEach((btn, index) => {
+        if ((index === 0 && view === 'table') || (index === 1 && view === 'grid')) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Re-render sessions (which will handle show/hide)
+    renderSessions();
+}
+
+// Action functions
+function viewAttendanceResult(sessionId) {
+    // Navigate to view_result page for this session
+    window.location.href = `/attendance/view-result?session=${sessionId}`;
+}
+
+async function exportSession(sessionId) {
+    try {
+        const response = await fetch(`/attendance/api/session/${sessionId}/export`);
+        const blob = await response.blob();
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `diemdanh_${sessionId}.xlsx`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        
+        showNotification('Đã xuất file Excel thành công', 'success');
+    } catch (error) {
+        console.error('❌ Lỗi khi xuất file:', error);
+        showNotification('Lỗi khi xuất file Excel', 'error');
+    }
+}
+
+function exportCurrentSession() {
+    if (currentSessionId) {
+        exportSession(currentSessionId);
+    }
+}
+
+// Quick filter functions
+function filterToday() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('from-date').value = today;
+    document.getElementById('to-date').value = today;
+    applyFilters();
+}
+
+function filterThisWeek() {
+    const today = new Date();
+    const weekStart = new Date(today.setDate(today.getDate() - today.getDay()));
+    const weekEnd = new Date(today.setDate(today.getDate() - today.getDay() + 6));
+    
+    document.getElementById('from-date').value = weekStart.toISOString().split('T')[0];
+    document.getElementById('to-date').value = weekEnd.toISOString().split('T')[0];
+    applyFilters();
+}
+
+function filterThisMonth() {
+    const today = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    document.getElementById('from-date').value = monthStart.toISOString().split('T')[0];
+    document.getElementById('to-date').value = monthEnd.toISOString().split('T')[0];
+    applyFilters();
+}
+
+function filterLowAttendance() {
+    // This would add a filter for low attendance sessions
+    showNotification('Lọc theo tỷ lệ điểm danh thấp', 'info');
+}
+
+function filterIncomplete() {
+    document.getElementById('status-filter').value = 'in-progress';
+    applyFilters();
+}
+
+// Additional functions
+async function loadRecentActivity() {
+    try {
+        const response = await fetch('/attendance/api/recent-activity');
+        const data = await response.json();
+        
+        if (data.success) {
+            const container = document.getElementById('recent-activity');
+            
+            if (!data.data.activities || data.data.activities.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted">
+                        <i class="fas fa-clock fa-2x mb-2"></i>
+                        <p>Chưa có hoạt động nào</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = data.data.activities.map(activity => `
+                <div class="activity-item">
+                    <div class="activity-icon bg-${activity.type === 'create' ? 'primary' : activity.type === 'edit' ? 'warning' : 'success'}">
+                        <i class="fas fa-${activity.icon}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div>${activity.description}</div>
+                        <div class="activity-time">${formatRelativeTime(activity.timestamp)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('❌ Lỗi khi tải hoạt động:', error);
+    }
+}
+
+// Utility functions
+function showLoading() {
+    document.getElementById('loading-state').classList.remove('d-none');
+    document.getElementById('table-view').classList.add('d-none');
+    document.getElementById('grid-view').classList.add('d-none');
+}
+
+function hideLoading() {
+    document.getElementById('loading-state').classList.add('d-none');
+}
+
+function showEmptyState() {
+    document.getElementById('empty-state').classList.remove('d-none');
+    document.getElementById('table-view').classList.add('d-none');
+    document.getElementById('grid-view').classList.add('d-none');
+}
+
+function hideEmptyState() {
+    document.getElementById('empty-state').classList.add('d-none');
+}
+
+// Main functions
+function newAttendanceSession() {
+    window.location.href = '/attendance/camera';
+}
+
+function generateStatistics() {
+    window.location.href = '/report/statistics';
+}
+
+// Notification helper
+function showNotification(message, type = 'info') {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+}
+</script>
+{% endblock %}

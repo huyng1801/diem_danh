@@ -1,0 +1,1295 @@
+{% extends "layout.html" %}
+
+{% block title %}Điểm danh bằng Face-ID{% endblock %}
+
+{% block page_title %}Điểm danh Face-ID{% endblock %}
+
+{% block page_description %}Hệ thống điểm danh tự động bằng nhận diện khuôn mặt{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+    <a href="{{ url_for('attendance.history') }}">
+        <i class="fas fa-calendar-check"></i>
+        Lịch sử điểm danh
+    </a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">
+    Điểm danh Face-ID
+</li>
+{% endblock %}
+
+{% block layout_content %}
+<div class="mb-3">
+    <button type="button" class="btn btn-success" onclick="startAttendance()" id="start-btn">
+        <i class="fas fa-play me-2"></i>
+        Bắt đầu điểm danh
+    </button>
+    <button type="button" class="btn btn-danger d-none" onclick="stopAttendance()" id="stop-btn">
+        <i class="fas fa-stop me-2"></i>
+        Dừng điểm danh
+    </button>
+</div>
+
+<div class="row">
+    <!-- Main Camera Section -->
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h6 class="m-0 font-weight-bold text-primary">
+                            <i class="fas fa-video me-2"></i>
+                            Camera điểm danh
+                        </h6>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <div class="d-flex gap-2 align-items-center">
+                            <div class="dropdown">
+                                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="classDropdown" data-bs-toggle="dropdown">
+                                    <i class="fas fa-users me-2"></i>
+                                    <span id="selected-class-text">Chọn lớp học</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow" style="min-width: 280px;" id="class-dropdown-menu">
+                                    <li><h6 class="dropdown-header"><i class="fas fa-chalkboard-teacher me-2"></i>Chọn lớp học</h6></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li class="px-3 mb-2">
+                                        <input type="text" class="form-control form-control-sm" id="class-search" placeholder="Tìm kiếm lớp...">
+                                    </li>
+                                    <div id="class-list-container" style="max-height: 300px; overflow-y: auto;">
+                                        <li><a class="dropdown-item text-muted" href="#">Đang tải...</a></li>
+                                    </div>
+                                </ul>
+                            </div>
+                            <select class="form-select form-select-sm" style="width: auto;" id="session-select">
+                                <option value="morning">🌅 Buổi sáng</option>
+                                <option value="afternoon">🌇 Buổi chiều</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="camera-container position-relative">
+                    <video id="camera-video" autoplay playsinline></video>
+                    
+                    <canvas id="detection-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; border-radius: 8px;"></canvas>
+                    
+                    <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" id="camera-overlay" style="display: none;">
+                    </div>
+                    
+                    <div class="position-absolute top-0 end-0 m-3">
+                        <span class="badge bg-secondary" id="camera-status">Chưa kết nối</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-clock me-2"></i>
+                    Nhận diện gần đây
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="recent-detections" style="max-height: 400px; overflow-y: auto;">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-user-friends fa-2x mb-2"></i>
+                        <p>Chưa có học sinh nào được nhận diện</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Thông tin buổi học
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="fw-bold">Ngày:</label>
+                    <span id="session-date">{{ current_date }}</span>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold">Lớp:</label>
+                    <span id="session-class" class="text-primary fw-bold">Chưa chọn</span>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold">Buổi:</label>
+                    <span id="session-period">Buổi sáng</span>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold">Thời gian bắt đầu:</label>
+                    <span id="session-start-time">-</span>
+                </div>
+                <div>
+                    <label class="fw-bold">Trạng thái:</label>
+                    <span class="badge bg-secondary" id="session-status">Chưa bắt đầu</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Thống kê
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <div class="h2 text-success" id="present-count">0</div>
+                    <div class="text-muted">Có mặt</div>
+                </div>
+                <div class="text-center mb-3">
+                    <div class="h2 text-danger" id="absent-count">0</div>
+                    <div class="text-muted">Vắng</div>
+                </div>
+                <div class="text-center mb-3">
+                    <div class="h2 text-primary" id="total-students">0</div>
+                    <div class="text-muted">Tổng số</div>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar bg-success" id="attendance-progress" style="width: 0%"></div>
+                </div>
+                <small class="text-muted mt-2 d-block text-center">
+                    <span id="attendance-percentage">0%</span>
+                </small>
+            </div>
+        </div>
+        
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-server me-2"></i>
+                    Trạng thái hệ thống
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Camera:</span>
+                    <span class="badge bg-secondary" id="camera-system-status">Offline</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>AI Model:</span>
+                    <span class="badge bg-secondary" id="ai-model-status">Chưa tải</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .camera-container {
+        background: #f8f9fa;
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        aspect-ratio: 1 / 1;
+        width: 50vw;
+        height: 50vh;
+        max-width: 600px;
+        max-height: 600px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    #camera-video {
+        display: block;
+        border-radius: 8px;
+        background: #e9ecef;
+        width: 100%;
+        height: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+    }
+    
+    #detection-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        border-radius: 8px;
+    }
+    
+    #camera-overlay {
+        border-radius: 8px;
+        z-index: 10;
+    }
+    
+    .detection-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem;
+        border: 1px solid #e3e6f0;
+        border-radius: 0.375rem;
+        margin-bottom: 0.5rem;
+        background: #d4edda;
+        border-color: #28a745;
+    }
+    
+    .confidence-high { background: #d4edda; color: #155724; }
+    .confidence-medium { background: #fff3cd; color: #856404; }
+    .confidence-low { background: #f8d7da; color: #721c24; }
+    
+    /* Enhanced class selection dropdown */
+    .dropdown-toggle::after {
+        display: none;
+    }
+    
+    .btn-outline-primary {
+        border-color: #007bff;
+        color: #007bff;
+        min-width: 200px;
+        justify-content: space-between;
+    }
+    
+    .btn-outline-primary:hover {
+        background-color: #f0f7ff;
+        border-color: #0056b3;
+    }
+    
+    .dropdown-menu {
+        border: 1px solid #e9ecef;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        border-radius: 12px;
+        padding: 0;
+        overflow: hidden;
+        min-width: 320px;
+    }
+    
+    .dropdown-header {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        padding: 16px 16px;
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        font-size: 15px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .dropdown-divider {
+        margin: 8px 0;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .dropdown-menu > li:nth-child(3) {
+        padding: 12px 12px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    #class-search {
+        border: 2px solid #e9ecef !important;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+    
+    #class-search:focus {
+        border-color: #007bff !important;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1) !important;
+        outline: none;
+    }
+    
+    #class-list-container {
+        max-height: 350px;
+        overflow-y: auto;
+        padding: 8px 0;
+    }
+    
+    #class-list-container li {
+        list-style: none;
+    }
+    
+    .class-option {
+        padding: 12px 16px !important;
+        margin: 4px 8px;
+        border-radius: 8px !important;
+        transition: all 0.2s ease;
+        display: block;
+        text-decoration: none !important;
+        color: inherit !important;
+        border-left: 3px solid transparent;
+    }
+    
+    .class-option:hover {
+        background: linear-gradient(135deg, #e7f1ff 0%, #f0f7ff 100%) !important;
+        border-left-color: #007bff;
+        color: #0056b3 !important;
+        transform: translateX(2px);
+    }
+    
+    .class-option .fw-bold {
+        font-size: 14px;
+        margin-bottom: 4px;
+    }
+    
+    .class-option small {
+        display: block;
+        font-size: 12px;
+    }
+    
+    .class-option:hover small {
+        color: rgba(0, 86, 179, 0.8) !important;
+    }
+    
+    .class-option .badge {
+        font-size: 11px;
+        padding: 4px 8px;
+        background: #e9ecef;
+        color: #495057;
+        font-weight: 500;
+    }
+    
+    .class-option:hover .badge {
+        background: #007bff !important;
+        color: white !important;
+    }
+    
+    /* Custom scrollbar for class list */
+    #class-list-container::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    #class-list-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    #class-list-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
+    
+    #class-list-container::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+    
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+    }
+    
+    .toast {
+        background: white;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: slideIn 0.3s ease-out;
+        max-width: 400px;
+    }
+    
+    .toast.success {
+        border-left: 4px solid #28a745;
+        background: #f0f9f5;
+    }
+    
+    .toast.error {
+        border-left: 4px solid #dc3545;
+        background: #fef5f5;
+    }
+    
+    .toast.warning {
+        border-left: 4px solid #ffc107;
+        background: #fffbf0;
+    }
+    
+    .toast.info {
+        border-left: 4px solid #0dcaf0;
+        background: #f0f8ff;
+    }
+    
+    .toast-icon {
+        font-size: 20px;
+    }
+    
+    .toast-message {
+        flex: 1;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .toast.success .toast-icon { color: #28a745; }
+    .toast.error .toast-icon { color: #dc3545; }
+    .toast.warning .toast-icon { color: #ffc107; }
+    .toast.info .toast-icon { color: #0dcaf0; }
+    
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toast notification system
+function showToast(message, type = 'info', duration = 3000) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    
+    const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+    };
+    
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type]}</span>
+        <span class="toast-message">${message}</span>
+    `;
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+let cameraStream = null;
+let isAttendanceActive = false;
+let detectionInterval = null;
+let currentClassData = null;
+let attendanceResults = {};
+let currentAttendanceLogId = null; // Store current session log ID
+
+// Session management for persistent camera
+const SessionManager = {
+    KEY_ACTIVE: 'camera_session_active',
+    KEY_CLASS_ID: 'camera_class_id',
+    KEY_CLASS_NAME: 'camera_class_name',
+    KEY_SESSION_TYPE: 'camera_session_type',
+    KEY_START_TIME: 'camera_start_time',
+    KEY_RESULTS: 'camera_results',
+    KEY_LOG_ID: 'camera_log_id',
+    
+    startSession(classId, className, sessionType, logId) {
+        sessionStorage.setItem(this.KEY_ACTIVE, 'true');
+        sessionStorage.setItem(this.KEY_CLASS_ID, classId);
+        sessionStorage.setItem(this.KEY_CLASS_NAME, className);
+        sessionStorage.setItem(this.KEY_SESSION_TYPE, sessionType);
+        sessionStorage.setItem(this.KEY_START_TIME, new Date().toLocaleTimeString('vi-VN'));
+        sessionStorage.setItem(this.KEY_RESULTS, JSON.stringify(attendanceResults));
+        sessionStorage.setItem(this.KEY_LOG_ID, logId);
+    },
+    
+    stopSession() {
+        sessionStorage.removeItem(this.KEY_ACTIVE);
+        sessionStorage.removeItem(this.KEY_CLASS_ID);
+        sessionStorage.removeItem(this.KEY_CLASS_NAME);
+        sessionStorage.removeItem(this.KEY_SESSION_TYPE);
+        sessionStorage.removeItem(this.KEY_START_TIME);
+        sessionStorage.removeItem(this.KEY_RESULTS);
+        sessionStorage.removeItem(this.KEY_LOG_ID);
+    },
+    
+    isSessionActive() {
+        return sessionStorage.getItem(this.KEY_ACTIVE) === 'true';
+    },
+    
+    getSessionData() {
+        return {
+            classId: sessionStorage.getItem(this.KEY_CLASS_ID),
+            className: sessionStorage.getItem(this.KEY_CLASS_NAME),
+            sessionType: sessionStorage.getItem(this.KEY_SESSION_TYPE),
+            startTime: sessionStorage.getItem(this.KEY_START_TIME),
+            results: JSON.parse(sessionStorage.getItem(this.KEY_RESULTS) || '{}'),
+            logId: sessionStorage.getItem(this.KEY_LOG_ID)
+        };
+    },
+    
+    updateResults(results) {
+        sessionStorage.setItem(this.KEY_RESULTS, JSON.stringify(results));
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📱 Khởi động hệ thống điểm danh...');
+    initializeAttendanceSystem();
+});
+
+async function initializeAttendanceSystem() {
+    try {
+        await loadClasses();
+        setupEventListeners();
+        updateDate();
+        autoSelectSession();
+        updateSystemStatus();
+        
+        // Restore session if it was active
+        if (SessionManager.isSessionActive()) {
+            const sessionData = SessionManager.getSessionData();
+            console.log('♻️ Khôi phục phiên điểm danh cũ...');
+            
+            // Restore log ID
+            if (sessionData.logId) {
+                currentAttendanceLogId = parseInt(sessionData.logId);
+            }
+            
+            // Restore class selection
+            if (sessionData.classId) {
+                selectClass(sessionData.classId, sessionData.className);
+                
+                // Restore results
+                if (Object.keys(sessionData.results).length > 0) {
+                    attendanceResults = sessionData.results;
+                    restoreDetectionHistory();
+                }
+            }
+            
+            // Restore session type
+            if (sessionData.sessionType) {
+                document.getElementById('session-select').value = sessionData.sessionType;
+                onSessionChange();
+            }
+            
+            // Auto-restart camera
+            setTimeout(() => {
+                startAttendance();
+            }, 500);
+        }
+        
+        console.log('✅ Khởi tạo thành công!');
+    } catch (error) {
+        console.error('❌ Lỗi khởi tạo:', error);
+        console.error('Chi tiết:', error.message);
+    }
+}
+
+async function loadClasses() {
+    try {
+        const response = await fetch('/classroom/api/list?status=active&limit=1000');
+        const data = await response.json();
+        
+        console.log('📚 API Response:', data);
+        
+        const container = document.getElementById('class-list-container');
+        if (!container) {
+            console.error('❌ Không tìm thấy container class-list-container');
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        if (data.success && data.data && data.data.classrooms) {
+            const classrooms = data.data.classrooms;
+            console.log(`✓ Tìm thấy ${classrooms.length} lớp học`);
+            
+            if (classrooms.length === 0) {
+                container.innerHTML = '<li><a class="dropdown-item text-muted" href="#">Không có lớp học nào</a></li>';
+                return;
+            }
+            
+            classrooms.forEach(c => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <a class="dropdown-item class-option" href="#" data-class-id="${c.id}" data-class-name="${c.class_name}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-primary">${c.class_name}</div>
+                                <small class="text-muted">${c.grade || ''} ${c.head_teacher ? '• ' + c.head_teacher : ''}</small>
+                            </div>
+                            <span class="badge bg-light text-dark">${c.student_count || 0} HS</span>
+                        </div>
+                    </a>
+                `;
+                container.appendChild(li);
+            });
+            
+            // Add click handlers
+            container.querySelectorAll('.class-option').forEach(option => {
+                option.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const classId = this.dataset.classId;
+                    const className = this.dataset.className;
+                    selectClass(classId, className);
+                });
+            });
+            
+            // Setup search
+            setupClassSearch(classrooms);
+            
+            console.log(`✅ Đã tải ${classrooms.length} lớp học`);
+        } else {
+            container.innerHTML = '<li><a class="dropdown-item text-muted" href="#">⚠️ Không thể tải lớp học</a></li>';
+            console.warn('⚠️ API không trả về dữ liệu lớp học:', data);
+        }
+    } catch (error) {
+        console.error('❌ Lỗi khi tải danh sách lớp:', error);
+        const container = document.getElementById('class-list-container');
+        if (container) {
+            container.innerHTML = '<li><a class="dropdown-item text-danger" href="#">❌ Lỗi tải dữ liệu</a></li>';
+        }
+    }
+}
+
+function selectClass(classId, className) {
+    // Update hidden select for compatibility
+    let hiddenSelect = document.getElementById('class-select');
+    if (!hiddenSelect) {
+        hiddenSelect = document.createElement('select');
+        hiddenSelect.id = 'class-select';
+        hiddenSelect.style.display = 'none';
+        document.body.appendChild(hiddenSelect);
+    }
+    hiddenSelect.innerHTML = `<option value="${classId}" selected>${className}</option>`;
+    
+    // Update button text
+    const buttonText = document.getElementById('selected-class-text');
+    if (buttonText) {
+        buttonText.textContent = className;
+    }
+    
+    // Update session info
+    document.getElementById('session-class').textContent = className;
+    
+    // Close dropdown
+    const dropdown = bootstrap.Dropdown.getInstance(document.getElementById('classDropdown'));
+    if (dropdown) dropdown.hide();
+    
+    // Load class data
+    loadClassStudents(classId);
+}
+
+function setupClassSearch(classrooms) {
+    const searchInput = document.getElementById('class-search');
+    if (!searchInput) return;
+    
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        const container = document.getElementById('class-list-container');
+        
+        container.innerHTML = '';
+        
+        const filtered = classrooms.filter(c => 
+            c.class_name.toLowerCase().includes(query) || 
+            (c.head_teacher && c.head_teacher.toLowerCase().includes(query)) ||
+            (c.grade && c.grade.toLowerCase().includes(query))
+        );
+        
+        if (filtered.length === 0) {
+            container.innerHTML = '<li><a class="dropdown-item text-muted" href="#">Không tìm thấy lớp nào</a></li>';
+            return;
+        }
+        
+        filtered.forEach(c => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <a class="dropdown-item class-option" href="#" data-class-id="${c.id}" data-class-name="${c.class_name}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold text-primary">${c.class_name}</div>
+                            <small class="text-muted">${c.grade || ''} ${c.head_teacher ? '• ' + c.head_teacher : ''}</small>
+                        </div>
+                        <span class="badge bg-light text-dark">${c.student_count || 0} HS</span>
+                    </div>
+                </a>
+            `;
+            container.appendChild(li);
+        });
+        
+        // Re-add click handlers
+        container.querySelectorAll('.class-option').forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.preventDefault();
+                const classId = this.dataset.classId;
+                const className = this.dataset.className;
+                selectClass(classId, className);
+            });
+        });
+    });
+}
+
+function setupEventListeners() {
+    document.getElementById('class-select').onchange = onClassChange;
+    document.getElementById('session-select').onchange = onSessionChange;
+}
+
+function updateDate() {
+    const el = document.getElementById('session-date');
+    if (el) el.textContent = new Date().toLocaleDateString('vi-VN');
+}
+
+function autoSelectSession() {
+    const hour = new Date().getHours();
+    const select = document.getElementById('session-select');
+    select.value = hour < 12 ? 'morning' : 'afternoon';
+    onSessionChange();
+}
+
+function updateSystemStatus() {
+    document.getElementById('camera-system-status').textContent = 'Sẵn sàng';
+    document.getElementById('camera-system-status').className = 'badge bg-info';
+}
+
+async function onClassChange() {
+    const select = document.getElementById('class-select');
+    if (!select || !select.value) return;
+    
+    const classId = select.value;
+    const className = select.options[select.selectedIndex].text;
+    
+    document.getElementById('session-class').textContent = className;
+    await loadClassStudents(classId);
+}
+
+function onSessionChange() {
+    const select = document.getElementById('session-select');
+    document.getElementById('session-period').textContent = select.options[select.selectedIndex].text;
+}
+
+async function loadClassStudents(classId) {
+    try {
+        const response = await fetch(`/classroom/api/get/${classId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            currentClassData = data.data;
+            const total = data.data.student_count || 0;
+            
+            // Reset attendance results for new class
+            attendanceResults = {};
+            
+            // Update stats: 0 present, total absent, total students
+            updateStats(0, total, total);
+            
+            console.log(`✓ Đã tải lớp ${data.data.class_name}: ${total} học sinh`);
+        }
+    } catch (error) {
+        console.error('Lỗi tải học sinh:', error);
+    }
+}
+
+async function startAttendance() {
+    const classId = document.getElementById('class-select').value;
+    const sessionType = document.getElementById('session-select').value;
+    const className = document.getElementById('selected-class-text').textContent;
+    
+    if (!classId) {
+        showToast('Vui lòng chọn lớp học trước!', 'warning');
+        return;
+    }
+    
+    try {
+        console.log('📋 Tạo phiên điểm danh...');
+        
+        // Create attendance session
+        const sessionResponse = await fetch('/attendance/start-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                classroom_id: parseInt(classId),
+                session_date: new Date().toISOString().split('T')[0],
+                session_type: sessionType
+            })
+        });
+        
+        const sessionData = await sessionResponse.json();
+        
+        if (!sessionData.success) {
+            throw new Error(sessionData.message || 'Không thể tạo phiên điểm danh');
+        }
+        
+        currentAttendanceLogId = sessionData.data.log_id;
+        console.log(`✅ Phiên điểm danh đã tạo: ${currentAttendanceLogId}`);
+        
+        console.log('🎥 Bắt đầu camera...');
+        await startCamera();
+        
+        console.log('👁️ Bắt đầu nhận diện...');
+        startDetection();
+        
+        isAttendanceActive = true;
+        
+        // Save session to sessionStorage
+        SessionManager.startSession(classId, className, sessionType, currentAttendanceLogId);
+        
+        document.getElementById('start-btn').classList.add('d-none');
+        document.getElementById('stop-btn').classList.remove('d-none');
+        document.getElementById('session-status').textContent = 'Đang diễn ra';
+        document.getElementById('session-status').className = 'badge bg-success';
+        document.getElementById('session-start-time').textContent = new Date().toLocaleTimeString('vi-VN');
+        
+        console.log('✅ Bắt đầu điểm danh thành công!');
+    } catch (error) {
+        console.error('❌ Lỗi:', error);
+        showToast('Lỗi: ' + error.message, 'error');
+        currentAttendanceLogId = null;
+    }
+}
+
+async function startCamera() {
+    try {
+        console.log('📷 Yêu cầu quyền camera...');
+        
+        // Check if getUserMedia is available
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('Trình duyệt không hỗ trợ getUserMedia API');
+        }
+        
+        const constraints = {
+            video: {
+                facingMode: 'user',
+                width: { min: 320, ideal: 640, max: 1280 },
+                height: { min: 240, ideal: 480, max: 720 }
+            },
+            audio: false
+        };
+        
+        console.log('Constraints:', constraints);
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log('✓ Camera stream:', stream);
+        
+        cameraStream = stream;
+        
+        const video = document.getElementById('camera-video');
+        if (!video) {
+            throw new Error('Video element không tìm thấy');
+        }
+        
+        video.srcObject = stream;
+        
+        // Wait for video to be ready
+        video.onloadedmetadata = () => {
+            console.log('✓ Video metadata loaded:', video.videoWidth, 'x', video.videoHeight);
+            setupCanvas();
+            video.play().catch(e => console.error('Play error:', e));
+        };
+        
+        // Timeout nếu video không ready
+        setTimeout(() => {
+            if (video.srcObject) {
+                video.play().catch(e => console.error('Delayed play error:', e));
+            }
+        }, 500);
+        
+        const overlay = document.getElementById('camera-overlay');
+        overlay.style.display = 'none';
+        document.getElementById('camera-status').textContent = 'Đang hoạt động';
+        document.getElementById('camera-status').className = 'badge bg-success';
+        document.getElementById('camera-system-status').textContent = 'Online';
+        document.getElementById('camera-system-status').className = 'badge bg-success';
+        console.log('✓ Camera khởi động thành công');
+        
+    } catch (error) {
+        console.error('❌ Chi tiết lỗi camera:', error);
+        let errorMsg = error.message;
+        
+        if (error.name === 'NotAllowedError') {
+            errorMsg = 'Bạn chưa cho phép truy cập camera. Vui lòng kiểm tra cài đặt trình duyệt.';
+        } else if (error.name === 'NotFoundError') {
+            errorMsg = 'Không tìm thấy camera. Vui lòng kết nối camera.';
+        } else if (error.name === 'NotReadableError') {
+            errorMsg = 'Camera đang được sử dụng bởi ứng dụng khác. Vui lòng đóng ứng dụng đó.';
+        } else if (error.name === 'OverconstrainedError') {
+            errorMsg = 'Camera không hỗ trợ độ phân giải yêu cầu. Vui lòng thử camera khác.';
+        }
+        
+        throw new Error(errorMsg);
+    }
+}
+
+function setupCanvas() {
+    const video = document.getElementById('camera-video');
+    const canvas = document.getElementById('detection-canvas');
+    const container = document.querySelector('.camera-container');
+    
+    if (!canvas || !video || !container) return;
+    
+    // Set canvas resolution to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    console.log('✓ Canvas setup:', canvas.width, 'x', canvas.height);
+}
+
+function drawFacesOnCanvas() {
+    const canvas = document.getElementById('detection-canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawFaceBox(face) {
+    const canvas = document.getElementById('detection-canvas');
+    
+    if (!canvas || !face.box) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Canvas dimensions match video dimensions (already set in setupCanvas)
+    const x = face.box.x;
+    const y = face.box.y;
+    const width = face.box.width;
+    const height = face.box.height;
+
+    
+    // Determine color based on confidence
+    let color = '#28a745'; // Green for high confidence
+    if (face.confidence < 0.7) color = '#dc3545'; // Red for low
+    else if (face.confidence < 0.9) color = '#ffc107'; // Yellow for medium
+    
+    // Draw rectangle
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x, y, width, height);
+    
+    // Draw name and confidence
+    const name = face.full_name || face.student_code || 'Unknown';
+    const confidence = (face.confidence * 100).toFixed(1) + '%';
+    
+    // Background for text
+    const fontSize = 16;
+    const fontFamily = 'Arial, sans-serif';
+    ctx.font = `bold ${fontSize}px ${fontFamily}`;
+    
+    // Measure text
+    const nameMetrics = ctx.measureText(name);
+    const confMetrics = ctx.measureText(confidence);
+    const maxWidth = Math.max(nameMetrics.width, confMetrics.width) + 10;
+    const textHeight = fontSize * 2 + 10;
+    
+    // Draw semi-transparent background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(x - 2, y - textHeight - 5, maxWidth, textHeight);
+    
+    // Draw name
+    ctx.fillStyle = color;
+    ctx.textAlign = 'left';
+    ctx.font = `bold ${fontSize}px ${fontFamily}`;
+    ctx.fillText(name, x + 5, y - fontSize - 5);
+    
+    // Draw confidence
+    ctx.fillStyle = '#fff';
+    ctx.font = `${fontSize - 2}px ${fontFamily}`;
+    ctx.fillText(confidence, x + 5, y - 5);
+}
+
+function startDetection() {
+    detectionInterval = setInterval(async () => {
+        if (isAttendanceActive && cameraStream) {
+            await performDetection();
+        }
+    }, 1000);
+}
+
+async function performDetection() {
+    try {
+        const video = document.getElementById('camera-video');
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        
+        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+        const classId = document.getElementById('class-select').value;
+        
+        const response = await fetch('/api/recognize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: imageData, class_id: parseInt(classId) })
+        });
+        
+        const data = await response.json();
+        
+        // Clear previous drawings
+        drawFacesOnCanvas();
+        
+        if (data.success && data.data.faces && data.data.faces.length > 0) {
+            data.data.faces.forEach(face => {
+                // Draw rectangle and name on canvas
+                if (face.box) {
+                    drawFaceBox(face);
+                }
+                
+                // Process recognition if confident
+                if (face.student_id && face.is_confident && face.confidence >= 0.7) {
+                    processRecognition(face);
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Lỗi nhận diện:', error);
+    }
+}
+
+function processRecognition(face) {
+    const sid = face.student_id;
+    
+    if (attendanceResults[sid]) {
+        return;
+    }
+    
+    attendanceResults[sid] = {
+        student: { id: sid, name: face.full_name, code: face.student_code },
+        status: 'present',
+        confidence: face.confidence,
+        timestamp: new Date().toISOString()
+    };
+    
+    // Update sessionStorage with new results
+    SessionManager.updateResults(attendanceResults);
+    
+    addDetection(face);
+    
+    // Update stats with current data
+    const presentCount = Object.keys(attendanceResults).length;
+    const totalCount = currentClassData ? currentClassData.student_count : 0;
+    const absentCount = totalCount - presentCount;
+    updateStats(presentCount, absentCount, totalCount);
+    
+    saveAttendance(sid, face);
+    
+    console.log(`✓ Nhận diện: ${face.full_name} (${(face.confidence*100).toFixed(1)}%) - ${presentCount}/${totalCount}`);
+}
+
+function addDetection(face) {
+    const container = document.getElementById('recent-detections');
+    
+    if (container.querySelector('.text-center')) {
+        container.innerHTML = '';
+    }
+    
+    const div = document.createElement('div');
+    div.className = 'detection-item';
+    div.innerHTML = `
+        <div>
+            <div class="fw-bold">${face.full_name}</div>
+            <small class="text-muted">${face.student_code} • ${new Date().toLocaleTimeString('vi-VN')}</small>
+        </div>
+        <span class="badge confidence-${face.confidence >= 0.9 ? 'high' : face.confidence >= 0.7 ? 'medium' : 'low'}">
+            ${(face.confidence * 100).toFixed(1)}%
+        </span>
+    `;
+    
+    container.insertBefore(div, container.firstChild);
+    
+    const items = container.querySelectorAll('.detection-item');
+    if (items.length > 10) {
+        items[items.length - 1].remove();
+    }
+}
+
+function restoreDetectionHistory() {
+    const container = document.getElementById('recent-detections');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    // Sort by timestamp descending (newest first)
+    const sortedResults = Object.values(attendanceResults)
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 10); // Show last 10
+    
+    if (sortedResults.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-user-friends fa-2x mb-2"></i>
+                <p>Chưa có học sinh nào được nhận diện</p>
+            </div>
+        `;
+        return;
+    }
+    
+    sortedResults.forEach(result => {
+        const div = document.createElement('div');
+        div.className = 'detection-item';
+        div.innerHTML = `
+            <div>
+                <div class="fw-bold">${result.student.name}</div>
+                <small class="text-muted">${result.student.code} • ${new Date(result.timestamp).toLocaleTimeString('vi-VN')}</small>
+            </div>
+            <span class="badge confidence-${result.confidence >= 0.9 ? 'high' : result.confidence >= 0.7 ? 'medium' : 'low'}">
+                ${(result.confidence * 100).toFixed(1)}%
+            </span>
+        `;
+        container.appendChild(div);
+    });
+    
+    // Update stats
+    updateStats();
+}
+
+function updateStats(present = null, absent = null, total = null) {
+    // Get current present count from attendance results
+    if (present === null) {
+        present = Object.keys(attendanceResults).length;
+    }
+    
+    // Get total students from class data
+    if (total === null && currentClassData) {
+        total = currentClassData.student_count || 0;
+    }
+    
+    // Calculate absent: total - present (not yet marked)
+    if (absent === null && total !== null) {
+        absent = total - present;
+    }
+    
+    // Ensure non-negative values
+    present = Math.max(0, present);
+    absent = Math.max(0, absent);
+    total = Math.max(0, total);
+    
+    // Update UI
+    document.getElementById('present-count').textContent = present;
+    document.getElementById('absent-count').textContent = absent;
+    document.getElementById('total-students').textContent = total;
+    
+    // Calculate percentage: (present / total) * 100
+    const percent = total > 0 ? (present / total * 100) : 0;
+    document.getElementById('attendance-percentage').textContent = percent.toFixed(1) + '%';
+    document.getElementById('attendance-progress').style.width = percent + '%';
+}
+
+async function saveAttendance(studentId, face) {
+    try {
+        if (!currentAttendanceLogId) {
+            console.error('❌ Không có attendance_log_id');
+            return;
+        }
+        
+        const response = await fetch('/attendance/record', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                student_id: studentId,
+                attendance_log_id: currentAttendanceLogId,
+                status: 'present',
+                confidence: face.confidence
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            console.log(`💾 Đã lưu: ${face.full_name}`);
+        } else {
+            console.warn(`⚠️ Không lưu được ${face.full_name}: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Lỗi lưu:', error);
+    }
+}
+
+async function stopAttendance() {
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+    }
+    
+    if (detectionInterval) {
+        clearInterval(detectionInterval);
+        detectionInterval = null;
+    }
+    
+    isAttendanceActive = false;
+    
+    // Finalize session if exists
+    if (currentAttendanceLogId) {
+        try {
+            console.log('📋 Kết thúc phiên điểm danh...');
+            const response = await fetch('/attendance/stop-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    log_id: currentAttendanceLogId
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                console.log('✅ Phiên điểm danh đã kết thúc');
+                console.log(`📊 Thống kê: ${data.data.present_count}/${data.data.total_students} học sinh có mặt`);
+            }
+        } catch (error) {
+            console.error('Lỗi kết thúc phiên:', error);
+        }
+        
+        currentAttendanceLogId = null;
+    }
+    
+    // Clear session from sessionStorage
+    SessionManager.stopSession();
+    
+    document.getElementById('start-btn').classList.remove('d-none');
+    document.getElementById('stop-btn').classList.add('d-none');
+    document.getElementById('session-status').textContent = 'Đã kết thúc';
+    document.getElementById('session-status').className = 'badge bg-secondary';
+    document.getElementById('camera-status').textContent = 'Đã ngắt';
+    document.getElementById('camera-status').className = 'badge bg-secondary';
+    const overlay = document.getElementById('camera-overlay');
+    overlay.innerHTML = '<div class="text-white"><i class="fas fa-camera-slash fa-3x mb-2"></i><p>Camera đã ngắt</p></div>';
+    overlay.style.display = 'flex';
+    
+    // Clear canvas
+    drawFacesOnCanvas();
+    
+    const total = Object.keys(attendanceResults).length;
+    const totalStudents = currentClassData ? currentClassData.student_count : 0;
+    console.log(`✅ Đã kết thúc! Đã nhận diện: ${total}/${totalStudents} học sinh`);
+    
+    // Show summary
+    if (total > 0) {
+        const percent = totalStudents > 0 ? ((total / totalStudents) * 100).toFixed(1) : 0;
+        showToast(`✅ Hoàn thành điểm danh! ${total}/${totalStudents} học sinh (${percent}%)`, 'success', 5000);
+    } else {
+        showToast('⚠️ Chưa có học sinh nào được nhận diện', 'warning', 3000);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+
+{% block title %}Đăng nhập{% endblock %}
+
+{% block meta_description %}Đăng nhập vào hệ thống điểm danh học sinh THCS bằng Face ID{% endblock %}
+
+{% block body_class %}auth-page login-page{% endblock %}
+
+{% block main_class %}{% endblock %}
+
+{% block footer %}<!-- No footer on auth pages -->{% endblock %}
+
+{% block content %}
+<div class="auth-page-wrapper">
+    <div class="auth-container">
+        <div class="container-md">
+            <div class="row justify-content-center align-items-center min-vh-100">
+                <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+                    <!-- Login Card -->
+                    <div class="card auth-card shadow-lg border-0">
+                        <div class="card-body p-4 p-sm-5">
+                            <!-- Logo and Title -->
+                            <div class="text-center mb-4">
+                                <div class="auth-logo mb-3">
+                                    <i class="fas fa-graduation-cap text-primary" style="font-size: 3rem;"></i>
+                                </div>
+                                <h2 class="auth-title mb-1">Đăng nhập</h2>
+                                <p class="auth-subtitle text-muted">
+                                    Hệ thống điểm danh Face-ID
+                                </p>
+                            </div>
+
+                            <!-- Error Alert -->
+                            {% if error %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert" id="error-alert">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                {{ error }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                            {% endif %}
+
+                            <!-- Success Alert -->
+                            {% if success %}
+                            <div class="alert alert-success alert-dismissible fade show" role="alert" id="success-alert">
+                                <i class="fas fa-check-circle me-2"></i>
+                                {{ success }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                            {% endif %}
+
+                            <!-- Login Form -->
+                            <form id="login-form" method="POST" action="{{ url_for('auth.login_submit') }}" novalidate>
+                                {{ csrf_token() if csrf_token }}
+                                
+                                <!-- Username/Email Field -->
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">
+                                        <i class="fas fa-user me-2"></i>
+                                        Tên đăng nhập hoặc Email
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-user text-muted"></i>
+                                        </span>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="username" 
+                                               name="username" 
+                                               placeholder="Nhập tên đăng nhập hoặc email"
+                                               value="{{ request.form.username if request.form.username }}"
+                                               required
+                                               autocomplete="username">
+                                    </div>
+                                </div>
+
+                                <!-- Password Field -->
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">
+                                        <i class="fas fa-lock me-2"></i>
+                                        Mật khẩu
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-lock text-muted"></i>
+                                        </span>
+                                        <input type="password" 
+                                               class="form-control" 
+                                               id="password" 
+                                               name="password" 
+                                               placeholder="Nhập mật khẩu"
+                                               required
+                                               autocomplete="current-password">
+                                        <button class="btn btn-outline-secondary" 
+                                                type="button" 
+                                                id="toggle-password"
+                                                aria-label="Hiện/ẩn mật khẩu">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Remember Me -->
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="remember_me" 
+                                               name="remember_me"
+                                               {{ 'checked' if request.form.remember_me }}>
+                                        <label class="form-check-label" for="remember_me">
+                                            Ghi nhớ đăng nhập
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Submit Button -->
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <span class="btn-text">
+                                            <i class="fas fa-sign-in-alt me-2"></i>
+                                            Đăng nhập
+                                        </span>
+                                        <span class="btn-spinner spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- Additional Links -->
+                            <div class="auth-links mt-4">
+                                {% if config.ALLOW_REGISTRATION %}
+                                <div class="text-center mt-3">
+                                    <span class="text-muted">Chưa có tài khoản?</span>
+                                    <a href="{{ url_for('auth.register_page') }}" class="link-primary text-decoration-none ms-1">
+                                        Đăng ký ngay
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Card Footer -->
+                        <div class="card-footer bg-light text-center py-3">
+                            <small class="text-muted">
+                                <i class="fas fa-shield-alt me-1"></i>
+                                Dữ liệu được bảo mật an toàn
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- System Info -->
+                    <div class="text-center mt-4">
+                        <small class="text-muted">
+                            Hệ thống điểm danh học sinh THCS bằng Face-ID<br>
+                            Phiên bản 1.0.0 - © 2024
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    body.auth-page {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        overflow-x: hidden;
+    }
+    
+    .auth-page-wrapper {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+    
+    .auth-container {
+        width: 100%;
+    }
+    
+    .auth-card {
+        border-radius: 1rem;
+        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.95);
+    }
+    
+    .auth-logo i {
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .auth-title {
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 28px;
+    }
+    
+    .auth-subtitle {
+        font-size: 14px;
+        color: #6b7280;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        font-size: 13px;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+    
+    .form-control {
+        font-size: 14px;
+        padding: 10px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        transition: all 0.2s ease;
+        background: #ffffff;
+        color: #1f2937;
+    }
+    
+    .form-control:hover {
+        border-color: #9ca3af;
+    }
+    
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        outline: none;
+    }
+    
+    .form-control::placeholder {
+        color: #9ca3af;
+        font-weight: 400;
+    }
+    
+    .input-group-text {
+        background: transparent;
+        border: 1px solid #d1d5db;
+        border-right: none;
+        color: #9ca3af;
+    }
+    
+    .input-group .form-control {
+        border-left: none;
+    }
+    
+    .input-group .btn-outline-secondary {
+        border-color: #d1d5db;
+        color: #9ca3af;
+    }
+    
+    .input-group .btn-outline-secondary:hover {
+        border-color: #9ca3af;
+        color: #6b7280;
+        background: transparent;
+    }
+    
+    .form-check-input {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #d1d5db;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+    
+    .form-check-label {
+        font-size: 14px;
+        color: #374151;
+        cursor: pointer;
+        margin-left: 8px;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        border: none;
+        border-radius: 0.5rem;
+        transition: all 0.3s ease;
+        font-weight: 600;
+        padding: 12px 24px;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+    
+    .alert {
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        border: none;
+    }
+    
+    .alert-danger {
+        background-color: #fee2e2;
+        border-color: #fecaca;
+        color: #991b1b;
+    }
+    
+    .alert-success {
+        background-color: #dcfce7;
+        border-color: #bbf7d0;
+        color: #166534;
+    }
+    
+    .auth-links a {
+        transition: all 0.3s ease;
+    }
+    
+    .auth-links a:hover {
+        transform: translateY(-1px);
+    }
+    
+    .card-footer {
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    @media (max-width: 576px) {
+        .auth-card {
+            margin: 0;
+        }
+        
+        .card-body {
+            padding: 24px !important;
+        }
+        
+        .auth-title {
+            font-size: 24px;
+        }
+        
+        .auth-page-wrapper {
+            padding: 20px;
+            min-height: auto;
+            padding-top: 30px;
+            padding-bottom: 30px;
+        }
+    }
+    .footer {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Password visibility toggle
+        const togglePassword = document.getElementById('toggle-password');
+        const passwordInput = document.getElementById('password');
+        
+        if (togglePassword && passwordInput) {
+            togglePassword.addEventListener('click', (e) => {
+                e.preventDefault();
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                
+                const icon = togglePassword.querySelector('i');
+                icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+            });
+        }
+
+        // Login form submission
+        const loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value.trim();
+                
+                // Client-side validation tiếng Việt
+                if (!username) {
+                    if (window.FaceID && FaceID.NotificationSystem) {
+                        FaceID.NotificationSystem.error('Vui lòng nhập tên đăng nhập hoặc email');
+                    } else {
+                        alert('Vui lòng nhập tên đăng nhập hoặc email');
+                    }
+                    return;
+                }
+                
+                if (!password) {
+                    if (window.FaceID && FaceID.NotificationSystem) {
+                        FaceID.NotificationSystem.error('Vui lòng nhập mật khẩu');
+                    } else {
+                        alert('Vui lòng nhập mật khẩu');
+                    }
+                    return;
+                }
+                
+                // Show loading state
+                const submitBtn = loginForm.querySelector('button[type="submit"]');
+                const btnText = submitBtn.querySelector('.btn-text');
+                const btnSpinner = submitBtn.querySelector('.btn-spinner');
+                
+                submitBtn.disabled = true;
+                btnText.classList.add('d-none');
+                btnSpinner.classList.remove('d-none');
+                
+                // Submit form
+                loginForm.submit();
+            });
+        }
+
+        // Auto-focus username field
+        const usernameInput = document.getElementById('username');
+        if (usernameInput) {
+            usernameInput.focus();
+        }
+
+        // Handle Enter key in password field
+        if (passwordInput) {
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    loginForm.dispatchEvent(new Event('submit'));
+                }
+            });
+        }
+
+        // Auto-dismiss alerts after 5 seconds
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        });
+    });
+</script>
+{% endblock %}

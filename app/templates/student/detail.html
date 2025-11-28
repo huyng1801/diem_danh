@@ -1,0 +1,607 @@
+{% extends "layout.html" %}
+
+{% block title %}Chi tiết học sinh - {{ student.full_name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+    <a href="{{ url_for('admin.dashboard') }}" class="text-decoration-none">
+        <i class="fas fa-home me-1"></i>Trang chủ
+    </a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{{ url_for('student.list') }}" class="text-decoration-none">
+        Quản lý học sinh
+    </a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">
+    {{ student.full_name }}
+</li>
+{% endblock %}
+
+{% block layout_content %}
+<div class="container-fluid mt-4">
+    <!-- Header Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-user-circle text-primary me-2"></i>
+                    Thông tin học sinh
+                </h4>
+                <div class="btn-group">
+                    <a href="{{ url_for('student.form', id=student.id) }}" class="btn btn-primary">
+                        <i class="fas fa-edit me-1"></i>
+                        Chỉnh sửa
+                    </a>
+                    <a href="{{ url_for('student.image_upload', id=student.id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-camera me-1"></i>
+                        Quản lý ảnh
+                    </a>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="fas fa-cog me-1"></i>
+                            Thao tác
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="exportStudentData()">
+                                    <i class="fas fa-file-export me-1"></i>
+                                    Xuất thông tin
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('attendance.history') }}?student_id={{ student.id }}">
+                                    <i class="fas fa-history me-1"></i>
+                                    Lịch sử điểm danh
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-warning" href="#" onclick="toggleStudentStatus({{ student.id }}, {{ 'false' if student.is_active else 'true' }})">
+                                    <i class="fas fa-{{ 'ban' if student.is_active else 'check' }} me-1"></i>
+                                    {{ 'Khóa tài khoản' if student.is_active else 'Kích hoạt tài khoản' }}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="#" onclick="deleteStudent({{ student.id }})">
+                                    <i class="fas fa-trash me-1"></i>
+                                    Xóa học sinh
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Basic Information -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-user me-2"></i>
+                        Thông tin cơ bản
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="text-muted" style="width: 40%;">
+                                        <i class="fas fa-id-card me-1"></i>
+                                        Mã học sinh:
+                                    </td>
+                                    <td><strong>{{ student.student_code }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">
+                                        <i class="fas fa-user me-1"></i>
+                                        Họ và tên:
+                                    </td>
+                                    <td><strong>{{ student.full_name }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">
+                                        <i class="fas fa-venus-mars me-1"></i>
+                                        Giới tính:
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'primary' if student.gender == 'Nam' else 'pink' }}">
+                                            <i class="fas fa-{{ 'mars' if student.gender == 'Nam' else 'venus' }} me-1"></i>
+                                            {{ student.gender }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">
+                                        <i class="fas fa-birthday-cake me-1"></i>
+                                        Ngày sinh:
+                                    </td>
+                                    <td>
+                                        {{ student.date_of_birth.strftime('%d/%m/%Y') if student.date_of_birth else 'Chưa cập nhật' }}
+                                        {% if student.date_of_birth %}
+                                        <small class="text-muted">({{ student_age }} tuổi)</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">
+                                        <i class="fas fa-phone me-1"></i>
+                                        Điện thoại:
+                                    </td>
+                                    <td>{{ student.phone or 'Chưa cập nhật' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="text-muted" style="width: 40%;">
+                                        <i class="fas fa-map-marker-alt me-1"></i>
+                                        Địa chỉ:
+                                    </td>
+                                    <td>{{ student.address or 'Chưa cập nhật' }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">
+                                        <i class="fas fa-user-check me-1"></i>
+                                        Trạng thái:
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if student.is_active else 'danger' }}">
+                                            <i class="fas fa-{{ 'check' if student.is_active else 'times' }} me-1"></i>
+                                            {{ 'Hoạt động' if student.is_active else 'Tạm khóa' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>
+                                        Ngày tạo:
+                                    </td>
+                                    <td>{{ student.created_at.strftime('%d/%m/%Y %H:%M') if student.created_at else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">
+                                        <i class="fas fa-edit me-1"></i>
+                                        Cập nhật:
+                                    </td>
+                                    <td>{{ student.updated_at.strftime('%d/%m/%Y %H:%M') if student.updated_at else 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parent Information -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Thông tin phụ huynh
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">
+                                    <i class="fas fa-user me-1"></i>
+                                    Tên phụ huynh:
+                                </label>
+                                <div>{{ student.parent_name or 'Chưa cập nhật' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">
+                                    <i class="fas fa-phone me-1"></i>
+                                    Điện thoại phụ huynh:
+                                </label>
+                                <div>
+                                    {% if student.parent_phone %}
+                                    <a href="tel:{{ student.parent_phone }}" class="text-decoration-none">
+                                        {{ student.parent_phone }}
+                                        <i class="fas fa-phone-alt ms-1"></i>
+                                    </a>
+                                    {% else %}
+                                    Chưa cập nhật
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- School Information -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-school me-2"></i>
+                        Thông tin học tập
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">
+                                    <i class="fas fa-door-open me-1"></i>
+                                    Lớp học:
+                                </label>
+                                <div>
+                                    {% if student.classroom %}
+                                    <a href="{{ url_for('classroom.detail', id=student.classroom.id) }}" class="text-decoration-none">
+                                        <strong>{{ student.classroom.class_name }}</strong>
+                                        <small class="text-muted">(Khối {{ student.classroom.grade }})</small>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-warning">Chưa phân lớp</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">
+                                    <i class="fas fa-calendar-alt me-1"></i>
+                                    Năm học:
+                                </label>
+                                <div>
+                                    {% if student.academic_year %}
+                                    <strong>{{ student.academic_year.year_name }}</strong>
+                                    {% if student.academic_year.is_current %}
+                                    <span class="badge bg-primary ms-1">Hiện tại</span>
+                                    {% endif %}
+                                    {% else %}
+                                    Chưa cập nhật
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Face Recognition & Statistics -->
+        <div class="col-lg-4 mb-4">
+            <!-- Face Recognition Status -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="fas fa-brain me-2"></i>
+                        Nhận diện khuôn mặt
+                    </h6>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        {% if student.face_recognition_enabled %}
+                        <i class="fas fa-check-circle fa-3x text-success mb-2"></i>
+                        <h5 class="text-success">Đã kích hoạt</h5>
+                        {% else %}
+                        <i class="fas fa-exclamation-circle fa-3x text-warning mb-2"></i>
+                        <h5 class="text-warning">Chưa kích hoạt</h5>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-end">
+                                <h4 class="mb-0 text-primary">{{ face_images_count }}</h4>
+                                <small class="text-muted">Ảnh đã lưu</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="mb-0 text-{{ 'success' if student.face_recognition_enabled else 'muted' }}">
+                                {{ '✓' if student.face_recognition_enabled else '✗' }}
+                            </h4>
+                            <small class="text-muted">Trạng thái</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <a href="{{ url_for('student.image_upload', id=student.id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-camera me-1"></i>
+                            Quản lý ảnh
+                        </a>
+                        {% if face_images_count > 0 %}
+                        <button class="btn btn-outline-success btn-sm" onclick="retrainModel()">
+                            <i class="fas fa-sync me-1"></i>
+                            Huấn luyện lại
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance Statistics -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Thống kê điểm danh
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h4 class="mb-0 text-success">{{ attendance_stats.present_count or 0 }}</h4>
+                            <small class="text-muted">Có mặt</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="mb-0 text-danger">{{ attendance_stats.absent_count or 0 }}</h4>
+                            <small class="text-muted">Vắng mặt</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="mb-0 text-warning">{{ attendance_stats.late_count or 0 }}</h4>
+                            <small class="text-muted">Đi muộn</small>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">Tỷ lệ có mặt:</span>
+                        <span class="fw-bold text-{{ 'success' if (attendance_stats.attendance_rate or 0) >= 90 else 'warning' if (attendance_stats.attendance_rate or 0) >= 70 else 'danger' }}">
+                            {{ "%.1f"|format(attendance_stats.attendance_rate or 0) }}%
+                        </span>
+                    </div>
+                    
+                    <div class="progress mt-2" style="height: 8px;">
+                        <div class="progress-bar bg-{{ 'success' if (attendance_stats.attendance_rate or 0) >= 90 else 'warning' if (attendance_stats.attendance_rate or 0) >= 70 else 'danger' }}" 
+                             style="width: {{ attendance_stats.attendance_rate or 0 }}%"></div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <a href="{{ url_for('attendance.history') }}?student_id={{ student.id }}" class="btn btn-outline-secondary btn-sm w-100">
+                            <i class="fas fa-history me-1"></i>
+                            Xem lịch sử chi tiết
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Hoạt động gần đây
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_activities %}
+                    <div class="timeline">
+                        {% for activity in recent_activities %}
+                        <div class="timeline-item mb-3">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-{{ activity.icon }} text-{{ activity.color }}"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">{{ activity.title }}</div>
+                                    <div class="text-muted small">{{ activity.description }}</div>
+                                    <div class="text-muted small">
+                                        <i class="fas fa-clock me-1"></i>
+                                        {{ activity.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                        <div>Chưa có hoạt động nào</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        Thao tác nhanh
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-primary w-100" onclick="markAttendance('present')">
+                                <i class="fas fa-check me-1"></i>
+                                Điểm danh có mặt
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-danger w-100" onclick="markAttendance('absent')">
+                                <i class="fas fa-times me-1"></i>
+                                Điểm danh vắng mặt
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-warning w-100" onclick="markAttendance('late')">
+                                <i class="fas fa-clock me-1"></i>
+                                Điểm danh đi muộn
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('student.image_upload', id=student.id) }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-camera me-1"></i>
+                                Cập nhật ảnh
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{{ url_for('student.list') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>
+                Quay lại danh sách
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const studentId = {{ student.id }};
+    
+    // Toggle student status
+    window.toggleStudentStatus = async function(id, status) {
+        const action = status === 'true' ? 'kích hoạt' : 'khóa';
+        
+        if (!confirm(`Bạn có chắc muốn ${action} tài khoản học sinh này?`)) return;
+        
+        try {
+            const response = await fetch(`/student/api/${id}/${status === 'true' ? 'activate' : 'deactivate'}`, {
+                method: 'PUT'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                window.FaceID?.NotificationSystem?.success(`Đã ${action} tài khoản học sinh`);
+                location.reload();
+            } else {
+                window.FaceID?.NotificationSystem?.error(result.message || `Lỗi khi ${action} tài khoản`);
+            }
+            
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            window.FaceID?.NotificationSystem?.error(`Lỗi kết nối khi ${action} tài khoản`);
+        }
+    };
+
+    // Delete student
+    window.deleteStudent = async function(id) {
+        if (!confirm('Bạn có chắc muốn xóa học sinh này? Hành động này không thể hoàn tác!')) return;
+        
+        try {
+            const response = await fetch(`/student/api/${id}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                window.FaceID?.NotificationSystem?.success('Đã xóa học sinh');
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('student.list') }}";
+                }, 1500);
+            } else {
+                window.FaceID?.NotificationSystem?.error(result.message || 'Lỗi khi xóa học sinh');
+            }
+            
+        } catch (error) {
+            console.error('Error deleting student:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi xóa học sinh');
+        }
+    };
+
+    // Export student data
+    window.exportStudentData = function() {
+        window.open(`/student/api/${studentId}/export`, '_blank');
+    };
+
+    // Retrain model
+    window.retrainModel = async function() {
+        if (!confirm('Bạn có chắc muốn huấn luyện lại mô hình nhận diện? Quá trình này có thể mất vài phút.')) return;
+        
+        try {
+            const response = await fetch(`/student/api/${studentId}/retrain`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                window.FaceID?.NotificationSystem?.success('Đã huấn luyện lại mô hình thành công');
+            } else {
+                window.FaceID?.NotificationSystem?.error(result.message || 'Lỗi khi huấn luyện mô hình');
+            }
+            
+        } catch (error) {
+            console.error('Retrain error:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi huấn luyện mô hình');
+        }
+    };
+
+    // Quick attendance marking
+    window.markAttendance = async function(status) {
+        const statusText = {
+            'present': 'có mặt',
+            'absent': 'vắng mặt', 
+            'late': 'đi muộn'
+        };
+        
+        if (!confirm(`Xác nhận điểm danh học sinh ${statusText[status]}?`)) return;
+        
+        try {
+            const response = await fetch('/attendance/api/quick-mark', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    student_id: studentId,
+                    status: status,
+                    date: new Date().toISOString().split('T')[0]
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                window.FaceID?.NotificationSystem?.success(`Đã điểm danh ${statusText[status]}`);
+                // Refresh page to update statistics
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                window.FaceID?.NotificationSystem?.error(result.message || 'Lỗi khi điểm danh');
+            }
+            
+        } catch (error) {
+            console.error('Attendance error:', error);
+            window.FaceID?.NotificationSystem?.error('Lỗi kết nối khi điểm danh');
+        }
+    };
+});
+</script>
+
+<style>
+.timeline-item {
+    position: relative;
+}
+
+.timeline-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 25px;
+    height: calc(100% + 10px);
+    width: 2px;
+    background-color: #dee2e6;
+}
+
+.bg-pink {
+    background-color: #e91e63 !important;
+}
+</style>
+{% endblock %}
